@@ -132,7 +132,7 @@ def svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kerne
 def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input):
     clf_svm=svm.SVC(kernel=kernel_input,class_weight="balanced")
     f1_scorer = make_scorer(f1_score,average="macro")
-    params={"C":(0.01,0.001,0.1),"degree":(2,3,4),"gamma":(0.01,0.1,0.001)}
+    params={"C":(0.01,0.001,0.1),"degree":(2,3),"gamma":(0.01,0.1,0.001)}
     svm_grid=GridSearchCV(clf_svm,params,n_jobs=-1,cv=15,verbose=-1,scoring=f1_scorer)
     svm_grid.fit(x_train_str,y_train)
     cv_results=svm_grid.cv_results_
@@ -154,9 +154,9 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     best_params=0
     kernel_input=kernel_str
     ch_orders=read_df()
-    # ch_orders=divide_classification(ch_orders)
+    ch_orders=divide_classification(ch_orders)
     # ch_orders=ch_freq(ch_orders)
-    # ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
+    ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
     ch_orders=label_target_atr(ch_orders,0.01,0.09,ch_existance_or_lvl,prime_or_commit)
 
     ch_orders=drop_atr(ch_orders,["ProjectType","ProjectCity","DailyCost","ChangeDuration","PrimeChFreq_p","PrimeChFreq_n","CommitChFreq_p","CommitChFreq_n"\
@@ -170,7 +170,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
        cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input)
     return(cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=\
-    run_the_code(True,"poly","Prime","Lvl","Construction")
+    run_the_code(True,"poly","Prime","Existance","Construction")
 # projects,ch_orders=run_the_code()
 a=y_train.describe()
 train_distribution=y_train.value_counts()

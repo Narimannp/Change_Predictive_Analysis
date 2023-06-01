@@ -25,9 +25,9 @@ def read_df():
     ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
             'ProjectCity', 'DailyCost', 'Population', 'Density',
             'ProjectClassification', 'ProjectBillingType','ProjectOperatingUnit', \
-            'ProjectType', 'ChangeDuration', 'TotalChFreq',
+            'ProjectType', 'ChangeDuration',
             'DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',
-            'PrimeChFreq', 'CommitChFreq', 'SalesChFreq']]
+            'PrimeChFreq_p','PrimeChFreq_n', 'CommitChFreq_p', 'SalesChFreq_p', 'CommitChFreq_n', 'SalesChFreq_n']]
     # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\
     #                  "CommitChFreq","SalesChFreq","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"],axis=1,inplace=True)
     ch_orders=ch_orders.set_index("ProjectId")
@@ -126,12 +126,12 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     best_params=0
     kernel_input=kernel_str
     ch_orders=read_df()
-    # ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
+    ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
     ch_orders=label_target_atr(ch_orders,[0.03,0.1],ch_existance_or_lvl,prime_or_commit)
     ch_orders=outlier_remove(ch_orders,["DurationModified"])
     ch_or_orig=ch_orders.copy()
-    ch_orders=drop_atr(ch_orders,["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\
-            "CommitChFreq","SalesChFreq","TotalChPer","CommitChPer","SalesChPer","PrimeChPer"])
+    ch_orders=drop_atr(ch_orders,["ProjectType","ProjectCity","DailyCost","ChangeDuration","PrimeChFreq_p","PrimeChFreq_n","CommitChFreq_p","CommitChFreq_n"\
+         ,"SalesChFreq_p","SalesChFreq_n","TotalChPer","CommitChPer","SalesChPer","PrimeChPer"])
 
     x,y=split_x_y(ch_orders,prime_or_commit,ch_existance_or_lvl) 
     x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y,.3)
