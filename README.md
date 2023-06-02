@@ -16,5 +16,5 @@ Also To explore the attributes with highest contribution in the occurance and se
    9-2 SVM Multi-class classification scenario
    9-3 ANN Multi-class classification scenario
    9-4 RF  Multi-class classification scenario
-10- Data Visulisation for possible eda
+10- Data Visulisation for possible EDA
 
