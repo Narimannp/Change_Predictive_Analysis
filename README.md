@@ -8,3 +8,7 @@ Also To explore the attributes with highest contribution in the occurance and se
 
 ##Steps
 5-Data-Preperation
+6-Data_preperation 2
+7-Data-Preperation 3
+8-imputing missing data in duratio atr
+9-classification algorythms
