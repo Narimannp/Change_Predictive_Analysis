@@ -6,3 +6,4 @@ Created on Fri Jun  2 10:02:07 2023
 """
 
 ## lets start data visulisation
+##this is the new eda with new approch to duplicates
