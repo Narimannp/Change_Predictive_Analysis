@@ -29,26 +29,29 @@ def prep_for_classification(ch_orders):
               'ProjectProvince':"last","DailyCost":"last", 'ProjectCity':"last", 'population':"last", 'density':"last",
               'ProjectClassification':"last", 'ProjectBillingType':"last","missing_per2_up":"last","missing_per2_low":"last",'DurationDiff_Divided_Duration':"last",
               'ProjectOperatingUnit':"last", 'ProjectType':"last","ChangeDuration":"last","CountChange":"count", "Duration":"last",'Amount' :"sum" })
-    ch_orders["ChPercentage"]=ch_orders["Amount"]/ch_orders["ProjectBaseContractValue"]
+    ch_orders["ChPercentage"]=ch_orders["Amount"]*100/ch_orders["ProjectBaseContractValue"]
     a=ch_orders
     ch_orders_prime_p=ch_orders[(ch_orders["Type"]=="PrimeContractChangeOrder") & (ch_orders["sign"]=="p")]
-    ch_orders_prime=ch_orders[(ch_orders["Type"]=="PrimeContractChangeOrder")]
+    ch_orders_prime_t=ch_orders[(ch_orders["Type"]=="PrimeContractChangeOrder")]
     ch_orders_prime_n=ch_orders[(ch_orders["Type"]=="PrimeContractChangeOrder") & (ch_orders["sign"]=="n")]
-    prime_percentage_dict=dict(zip(ch_orders_prime["ProjectId"],ch_orders_prime_p["ChPercentage"]))
+    ch_orders_prime_t=ch_orders_prime_t.groupby(["ProjectId"],as_index=False).agg({"ChPercentage":"sum"})
+    prime_percentage_dict=dict(zip(ch_orders_prime_t["ProjectId"],ch_orders_prime_t["ChPercentage"]))
     prime_freq_p_dict=dict(zip(ch_orders_prime_p["ProjectId"],ch_orders_prime_p["CountChange"]))
     prime_freq_n_dict=dict(zip(ch_orders_prime_n["ProjectId"],ch_orders_prime_n["CountChange"]))
     
-    ch_orders_commit=ch_orders[ch_orders["Type"]=="CommitmentContractChangeOrder"]
+    ch_orders_commit_t=ch_orders[ch_orders["Type"]=="CommitmentContractChangeOrder"]
+    ch_orders_commit_t=ch_orders_commit_t.groupby(["ProjectId"],as_index=False).agg({"ChPercentage":"sum"})
     ch_orders_commit_p=ch_orders[(ch_orders["Type"]=="CommitmentContractChangeOrder")& (ch_orders["sign"]=="p")]
     ch_orders_commit_n=ch_orders[(ch_orders["Type"]=="CommitmentContractChangeOrder")& (ch_orders["sign"]=="n")]
-    commit_percentage_dict=dict(zip(ch_orders_commit["ProjectId"],ch_orders_commit["ChPercentage"]))
+    commit_percentage_dict=dict(zip(ch_orders_commit_t["ProjectId"],ch_orders_commit_t["ChPercentage"]))
     commit_freq_p_dict=dict(zip(ch_orders_commit_p["ProjectId"],ch_orders_commit_p["CountChange"]))
     commit_freq_n_dict=dict(zip(ch_orders_commit_n["ProjectId"],ch_orders_commit_n["CountChange"])) 
     
-    ch_orders_sales=ch_orders[ch_orders["Type"]=="Sales Order"]
+    ch_orders_sales_t=ch_orders[ch_orders["Type"]=="Sales Order"]
+    ch_orders_sales_t=ch_orders_sales_t.groupby(["ProjectId"],as_index=False).agg({"ChPercentage":"sum"})
     ch_orders_sales_p=ch_orders[(ch_orders["Type"]=="Sales Order")& (ch_orders["sign"]=="p")]    
     ch_orders_sales_n=ch_orders[(ch_orders["Type"]=="Sales Order")& (ch_orders["sign"]=="n")]
-    sales_percentage_dict=dict(zip(ch_orders_sales["ProjectId"],ch_orders_sales["ChPercentage"]))
+    sales_percentage_dict=dict(zip(ch_orders_sales_t["ProjectId"],ch_orders_sales_t["ChPercentage"]))
     sales_freq_p_dict=dict(zip(ch_orders_sales_p["ProjectId"],ch_orders_sales_p["CountChange"]))
     sales_freq_n_dict=dict(zip(ch_orders_sales_n["ProjectId"],ch_orders_sales_n["CountChange"]))
    
@@ -114,11 +117,26 @@ def pearson_spearman(df):
 #     ch_orders["TotalChLvl"]=np.where(ch_orders["TotalChPer"]>high_lvl,"high","low")
 #     ch_orders["TotalChLvl"]=np.where(((ch_orders["TotalChPer"]>low_lvl) & (ch_orders["TotalChPer"]<high_lvl)),"med",ch_orders["TotalChLvl"])
 #     return(ch_orders)
+def divide_classification(ch_orders):
+    ch_orders["a"]=ch_orders["ProjectClassification"].apply(lambda x:len(x.split(".")))
+    ch_orders["ProjectClassification"]=ch_orders["ProjectClassification"].astype(str)
+    ch_orders["ProjectClassification_new"]=np.where(ch_orders["a"]==1,ch_orders["ProjectClassification"]+". ",ch_orders["ProjectClassification"])
+    # ch_orders[['Column1_1', 'Column1_2']] = ch_orders["ProjectClassification"].str.split('.', expand=True)
+    ch_orders["Classification_1"]=ch_orders["ProjectClassification_new"].apply(lambda x:x.split(".")[0])
+    ch_orders["Classification_1"]=    ch_orders["Classification_1"].replace("COMMERCIAL","COMM")
+    ch_orders["Classification_2"]=np.where(ch_orders["ProjectClassification_new"].apply(lambda x:len(x.split(".")))>1,ch_orders["ProjectClassification_new"].apply(lambda x:x.split(".")[1]),"")
+    # ch_orders["classification_2"]=np.where(ch_orders["classification_2"]=="",ch_orders["classification_2"],ch_orders["classification_2"].apply(lambda x:x[1]))
+    # ch_orders["classification_2"]=ch_orders["ProjectClassification"].apply(lambda x:len(x.split(".")))
+    # ch_orders.drop(columns=["ProjectClassification","a"],axis=1,inplace=True)
+    return(ch_orders)
+
+
 
 def run_the_code():
 
     projects,ch_orders=read_df()  
     ch_orders,a=prep_for_classification(ch_orders)
+    ch_orders=divide_classification(ch_orders)
     # projects,ch_orders=project_filter(projects,ch_orders,"ProjectType",["Construction"])
     # ch_orders=label_target_atr(ch_orders,0.01,0.09)
     # ch_orders=ch_orders[ch_orders["PrimeChPer"]!=0]
@@ -136,4 +154,5 @@ projects,ch_orders,a=run_the_code()
 # dist_prime_ch_lvl=ch_orders.groupby("PrimeChLvl").count()
 dist_project_oper_unit=ch_orders.groupby("ProjectOperatingUnit").count()
 oper_analys=projects.groupby("ProjectOperatingUnit").agg({"DailyCost":["count","mean","min","max"],"Duration":["count","mean","min","max"],"ProjectBaseContractValue":["count","mean","min","max"]})
+
 

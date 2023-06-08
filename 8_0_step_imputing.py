@@ -44,15 +44,59 @@ def outlier_remove(dataset,atrlist):
 def duration_modification(ch_orders):
     ch_orders["DurationModified"]=abs(ch_orders["Duration"])
     ch_orders["DurationModified"]=np.where(ch_orders["DurationModified"]==0,np.nan,ch_orders["DurationModified"])   
-    ch_orders=ch_orders[["ProjectId",'ProjectBaseContractValue','DailyCost', 'TotalChPer', 'PrimeChPer',
-           'Duration',"DurationModified",'ChangeDuration','DurationDiff_Divided_Duration','missing_per2_up',
-           'ProjectClassification', 'ProjectOperatingUnit', 'ProjectType', 'ProjectBillingType',   'CommitChPer', 'SalesChPer',
-           'ProjectCity', 'ProjectProvince','PrimeChFreq_p','PrimeChFreq_n', 'CommitChFreq_p', 'CommitChFreq_n', 'SalesChFreq_p','SalesChFreq_n','Population', 'Density']]
+
     ch_orders["DurationModified"]=np.where(ch_orders["DurationDiff_Divided_Duration"]<-25,np.nan,ch_orders["DurationModified"])  
     ch_orders["DurationModified"]=np.where(((ch_orders["DailyCost"]>150000 )&(ch_orders["Duration"]<5)),np.nan,ch_orders["DurationModified"])      
     return(ch_orders)
 
-
+def frequency_normalization(ch_orders):
+    ch_orders["freq_p_prime_dur"]=ch_orders["PrimeChFreq_p"]/ch_orders["DurationModified"]
+    ch_orders["freq_p_prime_sze"]=ch_orders["PrimeChFreq_p"]*1000/ch_orders["ProjectBaseContractValue"]   
+    
+    ch_orders["freq_n_prime_dur"]=ch_orders["PrimeChFreq_n"]/ch_orders["DurationModified"]
+    ch_orders["freq_n_prime_sze"]=ch_orders["PrimeChFreq_n"]*1000/ch_orders["ProjectBaseContractValue"]
+    return(ch_orders)
+  
+def ch_freq(ch_orders):
+    projecttypes=["Construction","Services"]
+    ch_df=pd.DataFrame()
+    for projecttype in projecttypes:
+        df=ch_orders[ch_orders["ProjectType"]==projecttype]
+        dict_1_p_d=df.groupby("Classification_1")["freq_p_prime_dur"].mean()
+        dict_1_p_s=df.groupby("Classification_1")["freq_p_prime_sze"].mean()    
+        dict_1_n_d=df.groupby("Classification_1")["freq_n_prime_dur"].mean()
+        dict_1_n_s=df.groupby("Classification_1")["freq_n_prime_sze"].mean()
+        dict_2_p_d=df.groupby("Classification_2")["freq_p_prime_dur"].mean()
+        dict_2_p_s=df.groupby("Classification_2")["freq_p_prime_sze"].mean()
+        dict_2_n_d=df.groupby("Classification_2")["freq_n_prime_dur"].mean()
+        dict_2_n_s=df.groupby("Classification_2")["freq_n_prime_sze"].mean()
+        df["Freq_Class_1_p_dur"]=df["Classification_1"].map(dict_1_p_d)
+        df["Freq_Class_1_p_sze"]=df["Classification_1"].map(dict_1_p_s)
+        df["Freq_Class_1_n_dur"]=df["Classification_1"].map(dict_1_n_d)
+        df["Freq_Class_1_n_sze"]=df["Classification_1"].map(dict_1_n_s)
+        df["Freq_Class_2_p_dur"]=df["Classification_2"].map(dict_2_p_d)
+        df["Freq_Class_2_p_sze"]=df["Classification_2"].map(dict_2_p_s)
+        df["Freq_Class_2_n_dur"]=df["Classification_2"].map(dict_2_n_d)
+        df["Freq_Class_2_n_sze"]=df["Classification_2"].map(dict_2_n_s)
+        dict_prv_p_d=df.groupby("ProjectProvince")["freq_p_prime_dur"].mean()
+        dict_prv_p_s=df.groupby("ProjectProvince")["freq_p_prime_sze"].mean()
+        dict_prv_n_d=df.groupby("ProjectProvince")["freq_n_prime_dur"].mean()
+        dict_prv_n_s=df.groupby("ProjectProvince")["freq_n_prime_sze"].mean()
+        df["Freq_Prov_p_dur"]=df["ProjectProvince"].map(dict_prv_p_d)  
+        df["Freq_Prov_p_sze"]=df["ProjectProvince"].map(dict_prv_p_s)  
+        df["Freq_Prov_n_dur"]=df["ProjectProvince"].map(dict_prv_n_d)   
+        df["Freq_Prov_n_sze"]=df["ProjectProvince"].map(dict_prv_n_s) 
+        dict_cty_p_d=df.groupby("ProjectCity")["freq_p_prime_dur"].mean()
+        dict_cty_p_s=df.groupby("ProjectCity")["freq_p_prime_sze"].mean()
+        dict_cty_n_d=df.groupby("ProjectCity")["freq_n_prime_dur"].mean()
+        dict_cty_n_s=df.groupby("ProjectCity")["freq_n_prime_sze"].mean()
+        df["Freq_p_City_dur"]=df["ProjectCity"].map(dict_cty_p_d)  
+        df["Freq_p_City_sze"]=df["ProjectCity"].map(dict_cty_p_s) 
+        df["Freq_n_City_dur"]=df["ProjectCity"].map(dict_cty_n_d) 
+        df["Freq_n_City_sze"]=df["ProjectCity"].map(dict_cty_n_s)
+        ch_df=pd.concat([df,ch_df],axis=0)
+    
+    return(ch_df)    
 ch_orders=duration_modification(ch_orders)
 ch_orders=ch_orders.set_index("ProjectId")
 ch_orders_for_impute=ch_orders[["DurationModified","ProjectBaseContractValue","ProjectClassification","ProjectOperatingUnit","ProjectType"]]
@@ -97,6 +141,10 @@ imputed_values = svm_clf.predict(X_missing_std)
 data_missing["DurationModified"]=imputed_values
 dictionary=dict(zip(data_missing.index,data_missing["DurationModified"]))
 ch_orders["DurationModified"]=np.where(ch_orders["DurationModified"].isna(),ch_orders.index.map(dictionary),ch_orders["DurationModified"])
+
+ch_orders=frequency_normalization(ch_orders)
+ch_orders=ch_freq(ch_orders)
+
 ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
 # # Combine the two parts of the data to get the final data with no missing values
 # final_data = pd.concat([data_missing, data_not_missing]).sort_index()

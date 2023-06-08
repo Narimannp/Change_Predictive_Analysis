@@ -23,11 +23,14 @@ def read_df():
     #Read external datasets, 1-Projects,2-Canadacities
     ch_orders_orig=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
     ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
-            'ProjectCity', 'DailyCost', 'Population', 'Density',
-            'ProjectClassification', 'ProjectBillingType','ProjectOperatingUnit', \
-            'ProjectType', 'ChangeDuration',
-            'DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',
-            'PrimeChFreq_p','PrimeChFreq_n', 'CommitChFreq_p', 'SalesChFreq_p', 'CommitChFreq_n', 'SalesChFreq_n']]
+            'ProjectCity', 'Population', 'Density',
+             'ProjectBillingType','ProjectOperatingUnit', \
+            'ProjectType','DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',\
+                    'ProjectClassification',"Classification_1","Classification_2",\
+                    "Freq_Class_1_p_dur","Freq_Class_1_p_sze","Freq_Class_1_n_dur","Freq_Class_1_n_sze","Freq_Class_2_p_dur","Freq_Class_2_p_sze",\
+                    "Freq_Class_2_n_dur","Freq_Class_2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
+                        "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_p_City_dur","Freq_p_City_sze","Freq_n_City_dur"\
+                            ,"Freq_n_City_sze"]]
     # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\
     #                  "CommitChFreq","SalesChFreq","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"],axis=1,inplace=True)
     ch_orders=ch_orders.set_index("ProjectId")
@@ -38,9 +41,9 @@ def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
     if existance_or_lvl=="Lvl":
         # ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
         print("Change Level Classifiction")
-        ch_orders[target_atr]=np.where(ch_orders["PrimeChPer"]<=boundry[0],0,1)
-        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
-        ch_orders[target_atr]=np.where((ch_orders["PrimeChPer"]>boundry[1]),2,ch_orders[target_atr])
+        ch_orders[target_atr]=np.where(ch_orders[prime_commit+"ChPer"]<=boundry[0],0,1)
+        ch_orders[target_atr]=np.where(((ch_orders[prime_commit+"ChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
+        ch_orders[target_atr]=np.where((ch_orders[prime_commit+"ChPer"]>boundry[1]),2,ch_orders[target_atr])
 
     elif existance_or_lvl=="Existance":
         print("Change Existance Classifiction")
@@ -70,7 +73,7 @@ def drop_atr(ch_orders,atr_list):
 def split_x_y(ch_orders,change_category,existance_or_level):
     target_atr=change_category+"Ch"+existance_or_level
     y=ch_orders[target_atr]
-    target_classification_list="PrimeChExistance,CommitChExistance,TotalChExistance,SalesChExistance,PrimeChLvl,CommitChLvl,TotalChLvl,SalesChLvl".split(",")
+    target_classification_list="PrimeChExistance,CommitChExistance,TotalChExistance,SalesChExistance,PrimeChLvl,CommitChLvl,TotalChLvl,SalesChLvl,PrimeChPer,CommitChPer,SalesChPer,TotalChPer".split(",")
     x=ch_orders.loc[:,~ch_orders.columns.isin(target_classification_list)]
     return(x,y)
 
@@ -100,10 +103,10 @@ def svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kerne
     return(confusion_test,accuracy_test,confusion_train,accuracy_train)
 
 def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input):
-    clf_svm=svm.SVC(kernel=kernel_input,class_weight={0:55.2,1:15,2:11.3})
-    f1_scorer = make_scorer(f1_score,average="micro")
+    clf_svm=svm.SVC(kernel=kernel_input,class_weight="balanced")
+    f1_scorer = make_scorer(f1_score,average="macro")
     weighted_accuracy_scorer=make_scorer(balanced_accuracy_score)
-    params={"C":(0.001,0.1,0.01),"degree":(2,3,4),"gamma":(0.01,0.1,0.001)}
+    params={"C":(0.001,0.1,0.01),"degree":(2,3),"gamma":(0.01,0.1,0.001)}
     svm_grid=GridSearchCV(clf_svm,params,n_jobs=-1,cv=15,verbose=-1,scoring= f1_scorer)
     svm_grid.fit(x_train_str,y_train)
     cv_results=svm_grid.cv_results_
@@ -127,11 +130,13 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     kernel_input=kernel_str
     ch_orders=read_df()
     ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
-    ch_orders=label_target_atr(ch_orders,[0.03,0.1],ch_existance_or_lvl,prime_or_commit)
-    ch_orders=outlier_remove(ch_orders,["DurationModified"])
+    ch_orders=label_target_atr(ch_orders,[3,10],ch_existance_or_lvl,prime_or_commit)
+    ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     ch_or_orig=ch_orders.copy()
-    ch_orders=drop_atr(ch_orders,["ProjectType","ProjectCity","DailyCost","ChangeDuration","PrimeChFreq_p","PrimeChFreq_n","CommitChFreq_p","CommitChFreq_n"\
-         ,"SalesChFreq_p","SalesChFreq_n","TotalChPer","CommitChPer","SalesChPer","PrimeChPer"])
+    # ch_orders=drop_atr(ch_orders,["Freq_Class_1_p_dur","Freq_Class_1_p_sze","Freq_Class_1_n_dur","Freq_Class_1_n_sze","Freq_Class_2_p_dur","Freq_Class_2_p_sze",\
+    # "Freq_Class_2_n_dur","Freq_Class_2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
+    #     "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_p_City_dur","Freq_p_City_sze","Freq_n_City_dur"\
+    #         ,"Freq_n_City_sze"])
 
     x,y=split_x_y(ch_orders,prime_or_commit,ch_existance_or_lvl) 
     x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y,.3)
@@ -141,7 +146,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
        cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input)
     return(ch_or_orig,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 ch_or_orig,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=\
-    run_the_code(True,"rbf","Prime","Lvl","Construction")
+    run_the_code(True,"poly","Prime","Lvl","Construction")
 # projects,ch_orders=run_the_code()
 # distribution=ch_orders.groupby("PrimeChLvl").count()["Density"]
 test_distribution=y_test.value_counts()
