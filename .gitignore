@@ -1,4 +1,5 @@
 EDA\
 *.orig
 sh.exe.stackdump
+*.png
 
