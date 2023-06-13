@@ -96,6 +96,7 @@ def run_the_code():
     projects=attribute_preperation(projects)
     projects=duration_filter(projects)
     ch_orders=merge_ch_orders_projects(ch_orders,projects)
+    ch_orders=ch_orders[ch_orders["ProjectType"]=="Construction"]
     ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\6_data_prep_ch_orders.csv',index=False)
     projects.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\6_data_prep_project.csv',index=False)
     return(ch_orders,projects) 
