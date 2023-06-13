@@ -86,14 +86,15 @@ def pca(df,n):
     plt.title('Scree Plot')
     plt.show()
     return(eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance)
-
-def run_the_code():   
+"n=number of PCs"
+def run_the_code(n):   
     ch_orders=read_df()
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
-    ch_orders=outlier_remove(ch_orders,["ProjectBaseContractValue","DurationModified",'Population','Density'])
+    # ch_orders=outlier_remove(ch_orders,["ProjectBaseContractValue","DurationModified",'Population','Density'])
     ch_orders_str=normalize(ch_orders)
-    eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance=pca(ch_orders_str,6)
+    eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance=pca(ch_orders_str,n)
     ch_orders_str.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\9.0_PCA.csv')
     return(eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance,ch_orders)
-eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance,ch_orders=run_the_code()
+eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance,ch_orders\
+    =run_the_code(10)
 

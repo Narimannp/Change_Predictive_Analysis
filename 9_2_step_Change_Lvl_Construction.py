@@ -124,6 +124,11 @@ def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel
     
     return(cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 
+def prediction_output(train_df):
+    output=pd.DataFrame()
+    output["predictors"]=train_df.columns
+    output.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
+    return(output)
 def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl,construction_or_service):
     cv_results="not applicable"
     best_params=0
@@ -147,6 +152,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     return(ch_or_orig,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 ch_or_orig,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=\
     run_the_code(True,"poly","Prime","Lvl","Construction")
+output=prediction_output(x_train)
 # projects,ch_orders=run_the_code()
 # distribution=ch_orders.groupby("PrimeChLvl").count()["Density"]
 test_distribution=y_test.value_counts()
@@ -157,6 +163,8 @@ calss_recall_train=[confusion_train.loc[0,0]/train_distribution.loc[0],confusion
 calss_recall_test=[confusion_test.loc[0,0]/test_distribution.loc[0],confusion_test.loc[1,1]/test_distribution.loc[1],confusion_test.loc[2,2]/test_distribution.loc[2]]
 calss_precision_train=[confusion_train.loc[0,0]/pred_train_distribution.loc[0],confusion_train.loc[1,1]/pred_train_distribution.loc[1],confusion_train.loc[2,2]/pred_train_distribution.loc[2]]
 calss_precision_test=[confusion_test.loc[0,0]/pred_test_distribution.loc[0],confusion_test.loc[1,1]/pred_test_distribution.loc[1],confusion_test.loc[2,2]/pred_test_distribution.loc[2]]
+
+
 # accuracy_per_class=pd.DataFrame()
 # accuracy_per_class["ClassAccuracy"]=[confusion_train.iloc[0,0]/distribution.iloc[0,0],confusion_train.iloc[1,1]/distribution.iloc[1,0],confusion_train.iloc[2,2]/distribution.iloc[2,0])]
 # class_dist_weight=distribution[0]/(distribution[0]+distribution[1])
