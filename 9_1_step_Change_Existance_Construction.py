@@ -171,7 +171,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     return(cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=\
     run_the_code(True,"poly","Prime","Existance","Construction")
-# projects,ch_orders=run_the_code()
+projects,ch_orders=run_the_code()
 a=y_train.describe()
 train_distribution=y_train.value_counts()
 test_distribution=y_test.value_counts()
