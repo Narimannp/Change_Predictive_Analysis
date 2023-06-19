@@ -87,8 +87,8 @@ def svm_classification_prep(ch_orders,x,y,test_size):
     x=pd.get_dummies(x,columns=categorical_atr_list,drop_first=True)
     x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=test_size,random_state=1)
     sc=StandardScaler().fit(x_train)
-    x_train_str=sc.transform(x_train)
-    x_test_str=sc.transform(x_test)
+    x_train_str=pd.DataFrame(data=sc.transform(x_train),index=x_train.index,columns=x_train.columns)
+    x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
 # x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y)
@@ -106,7 +106,7 @@ def svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kerne
 
 def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input,scorer):
     clf_svm=svm.SVC(kernel=kernel_input,class_weight="balanced")
-    f1_scorer = make_scorer(f1_score,average="macro")
+    f1_scorer = make_scorer(f1_score)
     if scorer=="f1":
         scorer=f1_scorer
     weighted_accuracy_scorer=make_scorer(balanced_accuracy_score)
@@ -130,9 +130,9 @@ def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel
     
     return(cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,svm_grid.best_score_,f1_train,f1_test)
 
-def prediction_output(list_boundries,train_df,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test):
-    output=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Multi-Class_results.csv')
-    # output = output.reset_index(drop=True)
+def prediction_output(list_boundries,train_df,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test,zero_change_included_or_not):
+    output=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Binary-Class_results.csv',)
+    output = output.reset_index(drop=True)
     run_results=pd.DataFrame()
     train_atrs=train_df.columns
     output_numerical_single="BaseValue,Duration,Population,Density".split(",")
@@ -160,7 +160,8 @@ def prediction_output(list_boundries,train_df,y_train,scorer,best_params,kernel_
         run_results.loc[0,freq_atr]=abr_list_pn_dursze
     a=y_train.shape
     train_distribution=y_train.value_counts()/a  
-    run_results.loc[0,"target_classes"]=str(list_boundries)
+    run_results.loc[0,"target_classes"]=list_boundries
+    run_results.loc[0,"zero_ch_included"]=[1 if zero_change_included_or_not=="Include_0_ch" else 0]
     run_results.loc[0,"target_distribution"]=str(train_distribution)
     run_results.loc[0,"scorer"]=scorer
     run_results.loc[0,"best_score"]=round(best_score,3)
@@ -176,18 +177,25 @@ def prediction_output(list_boundries,train_df,y_train,scorer,best_params,kernel_
     if  (output==run_results.loc[0,:]).all(axis=1).any():
         print("ALREADY_LOGED")
     else:
+        print("New Run Results")
         output=pd.concat([output,run_results])    
 
-    output.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Multi-Class_results.csv',index=False)
+    output.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Binary-Class_results.csv',index=False)
     return(run_results,output)
-def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl,list_boundries,scorer):
+def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl,list_boundries,scorer,zero_change_included_or_not):
     cv_results="not applicable"
     best_params=0
     kernel_input=kernel_str
     ch_orders=read_df()
     ch_orders
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
-    ch_orders=ch_orders[ch_orders["PrimeChPer"]!=0]
+    if zero_change_included_or_not=="Include_0_ch":
+        print("zero-change projects included")
+    elif zero_change_included_or_not=="Exclude_0_ch":
+        ch_orders=ch_orders[ch_orders["PrimeChPer"]!=0]
+        print("zero-change projects Excluded")
+    else:
+        raise Exception("Sorry, Wronginput for zero change projects")
     ch_orders=label_target_atr(ch_orders,list_boundries,ch_existance_or_lvl,prime_or_commit)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     ch_or_orig=ch_orders.copy()
@@ -202,7 +210,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
        confusion_test,accuracy_test,confusion_train,accuracy_train=svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input)
     else:
        cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,best_score,f1_train,f1_test=svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input,scorer)
-    run_results,output=prediction_output(list_boundries,x_train,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test)
+    run_results,output=prediction_output(list_boundries,x_train,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test,zero_change_included_or_not)
     return(run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test)
 run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test=\
-    run_the_code(True,"linear","Prime","Binary",2,"f1")
+    run_the_code(True,"rbf","Prime","Binary",4,"f1","Exclude_0_ch")

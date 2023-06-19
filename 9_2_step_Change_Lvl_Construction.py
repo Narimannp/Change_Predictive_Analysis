@@ -87,8 +87,8 @@ def svm_classification_prep(ch_orders,x,y,test_size):
     x=pd.get_dummies(x,columns=categorical_atr_list,drop_first=True)
     x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=test_size,random_state=1)
     sc=StandardScaler().fit(x_train)
-    x_train_str=sc.transform(x_train)
-    x_test_str=sc.transform(x_test)
+    x_train_str=pd.DataFrame(data=sc.transform(x_train),index=x_train.index,columns=x_train.columns)
+    x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
 # x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y)
