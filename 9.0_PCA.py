@@ -19,10 +19,10 @@ def read_df():
              'ProjectBillingType','ProjectOperatingUnit', \
             'ProjectType','DurationModified', \
                     'ProjectClassification',"Classification_1","Classification_2",\
-                    "Freq_Class_1_p_dur","Freq_Class_1_p_sze","Freq_Class_1_n_dur","Freq_Class_1_n_sze","Freq_Class_2_p_dur","Freq_Class_2_p_sze",\
-                    "Freq_Class_2_n_dur","Freq_Class_2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
-                        "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_p_City_dur","Freq_p_City_sze","Freq_n_City_dur"\
-                            ,"Freq_n_City_sze"]]
+                    "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
+                    "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
+                        "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
+                            ,"Freq_City_n_sze"]]
 #adding project id as index to be excluded from analysis
     ch_orders=ch_orders.set_index("ProjectId")
     return(ch_orders)
@@ -43,6 +43,16 @@ def outlier_remove(dataset,atrlist):
        higherfence=describe.loc["75%",attribute]+1.5*IQR
        dataset=dataset[(lowerfence<dataset[attribute]) & (dataset[attribute]<higherfence)]
     return(dataset) 
+
+def pearson_spearman(df):
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+    df = df.select_dtypes(include=numerics)
+    for column in df:
+       #Range normalizing attributes
+       df[column]=(df[column]-df[column].min())/(df[column].max()-df[column].min())
+    pearson=df.corr(method='pearson', min_periods=1).round(2)
+    spearman=df.corr(method='spearman', min_periods=1).round(2)
+    return(pearson,spearman)
 
 "given the DF and a list of attributes, removes those attributes from the DF"
 def drop_atr(ch_orders,atr_list):
@@ -72,7 +82,7 @@ def pca(df,n):
     pca.fit(df)
     atr_list=df.columns
     PCs= ["PC-" + str(i) for i in range(1, n + 1)]
-    eigenvectors = pd.DataFrame(data=pca.components_.transpose(),index=atr_list,columns=PCs)
+    eigenvectors = abs(pd.DataFrame(data=pca.components_.transpose(),index=atr_list,columns=PCs))
     #variance Ratio is the amount of variance explained by each principal component
     variance_ratios = pd.DataFrame(data=pca.explained_variance_ratio_,index=PCs,columns=["VariationRatio"])
     #singular values are square roots of the eigenvalues
@@ -89,6 +99,7 @@ def pca(df,n):
 "n=number of PCs"
 def run_the_code(n):   
     ch_orders=read_df()
+    # ch_orders=ch_orders.drop(["Density","Freq_Class1_p_sze","Freq_Class2_n_dur","Freq_Class1_p_dur","Freq_Prov_p_sze","Freq_Prov_n_sze","Freq_City_n_sze","Freq_City_n_"],axis=1)
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
     # ch_orders=outlier_remove(ch_orders,["ProjectBaseContractValue","DurationModified",'Population','Density'])
     ch_orders_str=normalize(ch_orders)
@@ -96,5 +107,13 @@ def run_the_code(n):
     ch_orders_str.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\9.0_PCA.csv')
     return(eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance,ch_orders)
 eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance,ch_orders\
-    =run_the_code(10)
+    =run_the_code(5)
 
+pearson,spearman=pearson_spearman(ch_orders)
+atr_list=[]
+for PC in eigenvectors.columns:
+    sorted_eigenvectors=eigenvectors.sort_values(PC,ascending=False).head(5)
+    for atr in sorted_eigenvectors.index.to_list():
+        if ((atr not in atr_list) & (eigenvectors.loc[atr,PC]>0.3)):
+            atr_list.append(atr)
+    

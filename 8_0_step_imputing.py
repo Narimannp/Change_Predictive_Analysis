@@ -99,9 +99,8 @@ def ch_freq(ch_orders):
     return(ch_df)    
 ch_orders=duration_modification(ch_orders)
 ch_orders=ch_orders.set_index("ProjectId")
-ch_orders_for_impute=ch_orders[["DurationModified","ProjectBaseContractValue","ProjectClassification","ProjectOperatingUnit","ProjectType"]]
-
-ch_orders_for_impute=pd.get_dummies(ch_orders_for_impute,columns=["ProjectClassification","ProjectOperatingUnit","ProjectType"],drop_first=True)
+ch_orders_for_impute=ch_orders[["DurationModified","ProjectBaseContractValue","Classification_1","Classification_2","ProjectClassification","ProjectOperatingUnit","ProjectType","ProjectProvince","ProjectCity","Population","Density","ProjectBillingType"]]
+ch_orders_for_impute=pd.get_dummies(ch_orders_for_impute,columns=["Classification_1","Classification_2","ProjectClassification","ProjectOperatingUnit","ProjectType","ProjectProvince","ProjectCity","ProjectBillingType"],drop_first=True)
 # Divide the data into two parts: one with missing values and one without
 data_missing = ch_orders_for_impute[ch_orders_for_impute["DurationModified"].isna()]
 data_not_missing = ch_orders_for_impute[~ch_orders_for_impute["DurationModified"].isna()]
@@ -130,8 +129,8 @@ print("Best F1 score: ", svm_grid.best_score_)
 y_test_pred=svm_clf.predict(x_test_std)
 y_train_pred=svm_clf.predict(x_train_std)
 
-a=r2_score(y_test,y_test_pred)
-b=r2_score(y_train,y_train_pred)
+r_square_test=r2_score(y_test,y_test_pred)
+r_square_train=r2_score(y_train,y_train_pred)
 
 # imputed_values = reg.predict(X_missing)
 imputed_values = svm_clf.predict(X_missing_std)

@@ -130,10 +130,9 @@ def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel
     
     return(cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,svm_grid.best_score_,f1_train,f1_test)
 
-def prediction_output(train_df,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test):
+def prediction_output(list_boundries,train_df,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test):
     output=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Multi-Class_results.csv')
     # output = output.reset_index(drop=True)
-    train_df.drop("Duration",axis=1,inplace=True)
     run_results=pd.DataFrame()
     train_atrs=train_df.columns
     output_numerical_single="BaseValue,Duration,Population,Density".split(",")
@@ -159,6 +158,10 @@ def prediction_output(train_df,scorer,best_params,kernel_str,accuracy_train,accu
             abr_list_pn_dursze=abr_list_pn_dursze+","+abr
         abr_list_pn_dursze=abr_list_pn_dursze[1:]
         run_results.loc[0,freq_atr]=abr_list_pn_dursze
+    a=y_train.shape
+    train_distribution=y_train.value_counts()/a  
+    run_results.loc[0,"target_classes"]=str(list_boundries)
+    run_results.loc[0,"target_distribution"]=str(train_distribution)
     run_results.loc[0,"scorer"]=scorer
     run_results.loc[0,"best_score"]=round(best_score,3)
     run_results.loc[0,"kernel"]=kernel_str
@@ -169,7 +172,7 @@ def prediction_output(train_df,scorer,best_params,kernel_str,accuracy_train,accu
     run_results.loc[0,"accuracy_test"]=round(accuracy_test,3)
     run_results.loc[0,"f1_train"]=round(f1_train,3)
     run_results.loc[0,"f1_test"]=round(f1_test,3)
-
+ 
     if  (output==run_results.loc[0,:]).all(axis=1).any():
         print("ALREADY_LOGED")
     else:
@@ -177,13 +180,15 @@ def prediction_output(train_df,scorer,best_params,kernel_str,accuracy_train,accu
 
     output.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\SVM_Multi-Class_results.csv',index=False)
     return(run_results,output)
-def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl,scorer):
+def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl,list_boundries,scorer):
     cv_results="not applicable"
     best_params=0
     kernel_input=kernel_str
     ch_orders=read_df()
+    ch_orders
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
-    ch_orders=label_target_atr(ch_orders,[3,10],ch_existance_or_lvl,prime_or_commit)
+    ch_orders=ch_orders[ch_orders["PrimeChPer"]!=0]
+    ch_orders=label_target_atr(ch_orders,list_boundries,ch_existance_or_lvl,prime_or_commit)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     ch_or_orig=ch_orders.copy()
     # ch_orders=drop_atr(ch_orders,["Freq_Class_1_p_dur","Freq_Class_1_p_sze","Freq_Class_1_n_dur","Freq_Class_1_n_sze","Freq_Class_2_p_dur","Freq_Class_2_p_sze",\
@@ -197,10 +202,10 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
        confusion_test,accuracy_test,confusion_train,accuracy_train=svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input)
     else:
        cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,best_score,f1_train,f1_test=svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input,scorer)
-    run_results,output=prediction_output(x_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test)
+    run_results,output=prediction_output(list_boundries,x_train,y_train,scorer,best_params,kernel_str,accuracy_train,accuracy_test,best_score,f1_train,f1_test)
     return(run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test)
 run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test=\
-    run_the_code(True,"poly","Prime","Lvl","f1")
+    run_the_code(True,"linear","Prime","Lvl",[3,8],"f1")
 
 # projects,ch_orders=run_the_code()
 # distribution=ch_orders.groupby("PrimeChLvl").count()["Density"]
@@ -212,7 +217,7 @@ calss_recall_train=[confusion_train.loc[0,0]/train_distribution.loc[0],confusion
 calss_recall_test=[confusion_test.loc[0,0]/test_distribution.loc[0],confusion_test.loc[1,1]/test_distribution.loc[1],confusion_test.loc[2,2]/test_distribution.loc[2]]
 calss_precision_train=[confusion_train.loc[0,0]/pred_train_distribution.loc[0],confusion_train.loc[1,1]/pred_train_distribution.loc[1],confusion_train.loc[2,2]/pred_train_distribution.loc[2]]
 calss_precision_test=[confusion_test.loc[0,0]/pred_test_distribution.loc[0],confusion_test.loc[1,1]/pred_test_distribution.loc[1],confusion_test.loc[2,2]/pred_test_distribution.loc[2]]
-
+a=y_train.shape
 
 # accuracy_per_class=pd.DataFrame()
 # accuracy_per_class["ClassAccuracy"]=[confusion_train.iloc[0,0]/distribution.iloc[0,0],confusion_train.iloc[1,1]/distribution.iloc[1,0],confusion_train.iloc[2,2]/distribution.iloc[2,0])]
