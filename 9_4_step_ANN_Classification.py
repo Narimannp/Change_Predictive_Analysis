@@ -21,17 +21,18 @@ print(tf.__version__)
 
 def read_df():
     #Read external datasets, 1-Projects,2-Canadacities
-    ch_orders_orig=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
-    ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
-            'ProjectCity', 'Population', 'Density',
-             'ProjectBillingType','ProjectOperatingUnit', \
-            'ProjectType','DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',\
-                    "ProjectClassification","Classification_1","Classification_2",\
-                    "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
-                    "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
-                        "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
-                            ,"Freq_City_n_sze"]]
-    ch_orders.rename(columns={"ProjectBaseContractValue":"BaseValue","ProjectOperatingUnit":"OperatingUnit","DurationModified":"Duration",\
+    ch_orders=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
+    # ch_orders=ch_orders[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
+    #         'ProjectCity', 'Population', 'Density',
+    #          'ProjectBillingType','ProjectOperatingUnit', \
+    #         'ProjectType','DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',\
+    #                 "ProjectClassification","Classification_1","Classification_2",\
+    #                 "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
+    #                 "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
+    #                     "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
+    #                         ,"Freq_City_n_sze"]]
+
+    ch_orders.rename(columns={"ProjectBaseContractValue":"BaseValue","ProjectOperatingUnit":"OperatingUnit",\
                                "ProjectBillingType":"BillType","ProjectCity":"City","ProjectProvince":"Province"},inplace=True)
     # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\""
     #                  "CommitChFreq","SalesChFreq","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"],axis=1,inplace=True)
@@ -49,13 +50,12 @@ def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
 
     elif existance_or_lvl=="Existance":
         print("Change Existance Classifiction")
-        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>1)),1,0)
+        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>boundry)),1,0)
     else:
         print("Wrong Input...")
         
     return(ch_orders)
         
-    return(ch_orders)
 
 def drop_atr(ch_orders,atr_list):
     ch_orders.drop(columns=atr_list,axis=1,inplace=True)
@@ -91,16 +91,26 @@ def classification_prep(ch_orders,x,y,test_size):
     x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
-def add_freq_atrs(df):
+#Takes DF and list of  attribute types to remove, and returns the DF with desired remaning attributes
+def select_atrs(df,atr_types):
+    loc_columns=[]
+    temp_loc_columns=[]
+    target_atrs=['PrimeChPer']
+    orig_atrs="BaseValue,OperatingUnit,DurationModified,BillType,ProjectClassification,Classification_1,Classification_2,City,Province,ProjectType".split(",")
+    loc_keys="City,Prov".split(",")
+    loc_atrs_add="Population,Density".split(",")
     columns=df.columns
     columns=columns.astype(str).tolist()
-    columns=[x for x in columns if "Freq" in x ]
-    df=df.drop(columns,axis=1)
-    return(df)
+    Freq_atrs=[x for x in columns if "Freq" in x ]
+    for loc_key in loc_keys: 
+        temp_loc_columns=[x for x in columns if loc_key in x ]
+        loc_columns=loc_columns+temp_loc_columns
+    df=df[target_atrs+orig_atrs+Freq_atrs]
+    return(df,loc_columns,Freq_atrs)
     
 def run_the_code(list_boundries,ch_existance_or_lvl,prime_or_commit,construction_or_service,include_categorical):
     ch_orders=read_df()
-    ch_orders=add_freq_atrs(ch_orders)
+    ch_orders,loc_atrs,Freq_atrs=select_atrs(ch_orders,"")
     ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
     ch_orders=label_target_atr(ch_orders,list_boundries,ch_existance_or_lvl,prime_or_commit)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
@@ -115,12 +125,12 @@ def run_the_code(list_boundries,ch_existance_or_lvl,prime_or_commit,construction
         x=x[atr_list]
         RunName="Model Accuracy-NumericalAttributes"
     x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.15)
-    return(ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName)
+    return(ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName,loc_atrs,Freq_atrs)
 
-ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName=run_the_code(2,"Existance","Prime","Construction", True)
-
+ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName,loc_atrs,Freq_atrs=run_the_code(4,"Existance","Prime","Construction", True)
+input_size=(len(x_train_str.columns))
 ann=tf.keras.models.Sequential()
-ann.add(tf.keras.layers.Dense(units=131,activation="relu"))
+ann.add(tf.keras.layers.Dense(units=input_size,activation="relu"))
 ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
 ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
 ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
@@ -130,11 +140,11 @@ ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
 #     else:
 #         return lr * tf.math.exp(-0.1)
 initial_learning_rate = 0.01
-optimizer = SGD(learning_rate=initial_learning_rate)
+# optimizer = SGD(learning_rate=initial_learning_rate)
 ann.compile(optimizer="adam",loss="binary_crossentropy",metrics=["accuracy"])
 
-history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=8,epochs=20)
-print(atr_list)
+history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=8,epochs=45)
+# print(atr_list)
 y_pred_test=ann.predict(x_test_str)
 y_pred_test=y_pred_test>0.5
 y_pred_train=ann.predict(x_train_str)

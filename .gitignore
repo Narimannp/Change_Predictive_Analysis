@@ -2,4 +2,5 @@ EDA\
 *.orig
 sh.exe.stackdump
 *.png
+__pycache__
 
