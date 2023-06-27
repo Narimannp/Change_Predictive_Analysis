@@ -14,20 +14,11 @@ import matplotlib.pyplot as plt
 "Reads datasets with require attributes"
 def read_df():
     ch_orders=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
-    # ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
-    #         'ProjectCity', 'Population', 'Density',
-    #          'ProjectBillingType','ProjectOperatingUnit', \
-    #         'ProjectType','DurationModified', \
-    #                 'ProjectClassification',"Classification_1","Classification_2",\
-    #                 "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
-    #                 "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
-    #                     "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
-    #                         ,"Freq_City_n_sze"]]
     ch_orders.rename(columns={"ProjectBaseContractValue":"BaseValue","ProjectOperatingUnit":"OperatingUnit",\
                                    "ProjectBillingType":"BillType","ProjectCity":"City","ProjectProvince":"Province"},inplace=True)
-#adding project id as index to be excluded from analysis
     ch_orders=ch_orders.set_index("ProjectId")
     return(ch_orders)
+
 "Given the Df and types of attributes necessary, return the df with required attribute types"
 def select_atrs(df,atr_types):
     loc_columns=[]
@@ -50,7 +41,6 @@ def project_filter(ch_orders,atr,atr_class_list):
     ch_orders=ch_orders[ch_orders[atr]==(atr_class_list)]
     return(ch_orders)
 
-
 "given the DF and list of attributes uses IQR method to remove outliers from those attributes "
 def outlier_remove(dataset,atrlist):
     for attribute in atrlist:
@@ -61,11 +51,12 @@ def outlier_remove(dataset,atrlist):
        dataset=dataset[(lowerfence<dataset[attribute]) & (dataset[attribute]<higherfence)]
     return(dataset) 
 
+"Given the DF runs the corrolation analysis for numericla atrs and returs the pearson and spearman coeficents"
 def pearson_spearman(df):
     numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
     df = df.select_dtypes(include=numerics)
     for column in df:
-       #Range normalizing attributes
+       "Range normalizing attributes"
        df[column]=(df[column]-df[column].min())/(df[column].max()-df[column].min())
     pearson=df.corr(method='pearson', min_periods=1).round(2)
     spearman=df.corr(method='spearman', min_periods=1).round(2)
@@ -140,9 +131,7 @@ def run_the_code(n):
     ch_orders=read_df()
     ch_orders=select_atrs(ch_orders,"")
     print(ch_orders.columns)
-    # ch_orders=ch_orders.drop(["Density","Freq_Class1_p_sze","Freq_Class2_n_dur","Freq_Class1_p_dur","Freq_Prov_p_sze","Freq_Prov_n_sze","Freq_City_n_sze","Freq_City_n_"],axis=1)
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
-    # ch_orders=outlier_remove(ch_orders,["ProjectBaseContractValue","DurationModified",'Population','Density'])
     ch_orders_str=normalize(ch_orders)
     eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance=pca(ch_orders_str,n)
     atr_list=best_atrs_wh_coliniarity(ch_orders,eigenvectors)
