@@ -8,12 +8,8 @@ Created on Wed Jan 25 18:38:10 2023
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
-import seaborn as sns
-import sklearn as slr
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVR
-from sklearn import svm
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import GridSearchCV

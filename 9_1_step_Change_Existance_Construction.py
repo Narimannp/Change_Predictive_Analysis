@@ -91,7 +91,7 @@ def svm_classification_prep(ch_orders,x,y,test_size):
     x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
-# x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y)
+
 
 def svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input):
     clf_svm_l=svm.SVC(kernel=kernel_input)

@@ -24,27 +24,34 @@ def read_df():
     #Read external datasets, 1-Projects,2-Canadacities
     ch_orders_orig=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
     ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
-            'ProjectCity', 'DailyCost', 'Population', 'Density',
-            'ProjectClassification', 'ProjectBillingType','ProjectOperatingUnit', \
-            'ProjectType', 'ChangeDuration',
-            'DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',
-            'PrimeChFreq_p','PrimeChFreq_n', 'CommitChFreq_p', 'SalesChFreq_p', 'CommitChFreq_n', 'SalesChFreq_n']]
-    # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\
+            'ProjectCity', 'Population', 'Density',
+             'ProjectBillingType','ProjectOperatingUnit', \
+            'ProjectType','DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',\
+                    "Classification_1","Classification_2",\
+                    "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
+                    "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
+                        "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
+                            ,"Freq_City_n_sze"]]
+    ch_orders.rename(columns={"ProjectBaseContractValue":"BaseValue","ProjectOperatingUnit":"OperatingUnit","DurationModified":"Duration",\
+                               "ProjectBillingType":"BillType","ProjectCity":"City","ProjectProvince":"Province"},inplace=True)
+    # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\""
     #                  "CommitChFreq","SalesChFreq","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"],axis=1,inplace=True)
     ch_orders=ch_orders.set_index("ProjectId")
     return(ch_orders)
 
-def label_target_atr(ch_orders,low_lvl,high_lvl,existance_or_lvl,prime_commit):
-    target_atr=prime_commit+"Ch"+existance_or_lvl
-    if existance_or_lvl=="Lvl":
-        # ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
-        print("Change Level Classifiction")
-        ch_orders[target_atr]=np.where(ch_orders["PrimeChPer"]>high_lvl,2,0)
-        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>low_lvl) & (ch_orders["PrimeChPer"]<high_lvl)),1,ch_orders[target_atr])
 
-    elif existance_or_lvl=="Existance":
-        print("Change Existance Classifiction")
-        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]==0)),1,0)
+def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
+    target_atr=prime_commit+"Ch"+existance_or_lvl
+    if existance_or_lvl=="Multi-CLass":
+        # ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
+        print("Multi-Class Classifiction")
+        ch_orders[target_atr]=np.where(ch_orders[prime_commit+"ChPer"]<=boundry[0],0,1)
+        ch_orders[target_atr]=np.where(((ch_orders[prime_commit+"ChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
+        ch_orders[target_atr]=np.where((ch_orders[prime_commit+"ChPer"]>boundry[1]),2,ch_orders[target_atr])
+
+    elif existance_or_lvl=="Binary":
+        print("Binary Classifiction")
+        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>boundry)),1,0)
     else:
         print("Wrong Input...")
         
@@ -70,12 +77,12 @@ def drop_atr(ch_orders,atr_list):
 def split_x_y(ch_orders,change_category,existance_or_level):
     target_atr=change_category+"Ch"+existance_or_level
     y=ch_orders[target_atr]
-    target_classification_list="PrimeChExistance,CommitChExistance,TotalChExistance,SalesChExistance,PrimeChLvl,CommitChLvl,TotalChLvl,SalesChLvl".split(",")
+    target_classification_list="PrimeChBinary,CommitChBinary,TotalChBinary,SalesChBinary,PrimeChMulti-Class,CommitChMulti-Class,TotalChMulti-Class,SalesChMulti-Class,PrimeChPer,CommitChPer,SalesChPer,TotalChPer".split(",")
     x=ch_orders.loc[:,~ch_orders.columns.isin(target_classification_list)]
     return(x,y)
 
 def random_forest_classification(x_train,x_test,y_train,y_test):
-    rfc = RandomForestClassifier(n_estimators=1000, random_state=42,criterion="entropy",max_depth=6,class_weight="balanced_subsample")
+    rfc = RandomForestClassifier(n_estimators=1000, random_state=42,criterion="entropy",max_depth=5,class_weight="balanced_subsample")
     rfc.fit(x_train,y_train)
     y_test_pred = rfc.predict(x_test)
     y_train_pred=rfc.predict(x_train)
@@ -83,7 +90,7 @@ def random_forest_classification(x_train,x_test,y_train,y_test):
     confusion_test=pd.DataFrame(data=confusion_matrix(y_test,y_test_pred))
     accuracy_train=accuracy_score(y_train,y_train_pred)
     confusion_train=pd.DataFrame(data=confusion_matrix(y_train,y_train_pred))
-    importances = rfc.feature_importances_
+    importances = pd.DataFrame(data=rfc.feature_importances_,index=x_train.columns)
     return(importances,confusion_test,accuracy_test,confusion_train,accuracy_train)
 
 def svm_classification_prep(ch_orders,x,y,test_size):
@@ -135,12 +142,10 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     best_params=0
     kernel_input=kernel_str
     ch_orders=read_df()
-    # ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
-    ch_orders=label_target_atr(ch_orders,0.01,0.09,ch_existance_or_lvl,prime_or_commit)
+    ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
+    ch_orders=label_target_atr(ch_orders,4,ch_existance_or_lvl,prime_or_commit)
 
-    ch_orders=drop_atr(ch_orders,["ProjectType","ProjectCity","DailyCost","ChangeDuration","PrimeChFreq_p","PrimeChFreq_n","CommitChFreq_p","CommitChFreq_n"\
-         ,"SalesChFreq_p","SalesChFreq_n","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"])
-    ch_orders=outlier_remove(ch_orders,["DurationModified"])
+    ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     x,y=split_x_y(ch_orders,prime_or_commit,ch_existance_or_lvl) 
     x_train,x_test,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y,.3)
     importance, confusion_test,accuracy_test,confusion_train,accuracy_train=random_forest_classification(x_train,x_test,y_train,y_test)
@@ -150,17 +155,17 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,ch_existance_or_lvl
     #    cv_results,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input)
     return(importance,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params)
 importance,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params=\
-    run_the_code(False,"poly","Prime","Lvl","Construction")
+    run_the_code(False,"poly","Prime","Binary","Construction")
 # projects,ch_orders=run_the_code()
 a=y_train.describe()
 test_distribution=y_test.value_counts()
 train_distribution=y_train.value_counts()
 pred_test_distribution=confusion_test.sum()
 pred_train_distribution=confusion_train.sum()
-calss_recall_train=[confusion_train.loc[0,0]/train_distribution.loc[0],confusion_train.loc[1,1]/train_distribution.loc[1],confusion_train.loc[2,2]/train_distribution.loc[2]]
-calss_recall_test=[confusion_test.loc[0,0]/test_distribution.loc[0],confusion_test.loc[1,1]/test_distribution.loc[1],confusion_test.loc[2,2]/test_distribution.loc[2]]
-calss_precision_train=[confusion_train.loc[0,0]/pred_train_distribution.loc[0],confusion_train.loc[1,1]/pred_train_distribution.loc[1],confusion_train.loc[2,2]/pred_train_distribution.loc[2]]
-calss_precision_test=[confusion_test.loc[0,0]/pred_test_distribution.loc[0],confusion_test.loc[1,1]/pred_test_distribution.loc[1],confusion_test.loc[2,2]/pred_test_distribution.loc[2]]
+calss_recall_train=[confusion_train.loc[0,0]/train_distribution.loc[0],confusion_train.loc[1,1]/train_distribution.loc[1]]
+calss_recall_test=[confusion_test.loc[0,0]/test_distribution.loc[0],confusion_test.loc[1,1]/test_distribution.loc[1]]
+calss_precision_train=[confusion_train.loc[0,0]/pred_train_distribution.loc[0],confusion_train.loc[1,1]/pred_train_distribution.loc[1]]
+calss_precision_test=[confusion_test.loc[0,0]/pred_test_distribution.loc[0],confusion_test.loc[1,1]/pred_test_distribution.loc[1]]
 
 # distribution=ch_orders.groupby("PrimeChExistance").count()["Density"]
 # class_dist_weight=distribution[0]/(distribution[0]+distribution[1])

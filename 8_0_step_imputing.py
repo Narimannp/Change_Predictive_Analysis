@@ -149,5 +149,16 @@ ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mi
 # final_data = pd.concat([data_missing, data_not_missing]).sort_index()
 # print(ch_orders.info())
 
+ch_orders=ch_orders[ch_orders["ProjectType"]=="Construction"]
+ch_orders["TotalChFreq"]=ch_orders["PrimeChFreq_p"]+ch_orders["PrimeChFreq_n"]
+ch_orders=ch_orders[ch_orders["TotalChFreq"]>25]
+# ch_orders=outlier_remove(ch_orders, ["TotalChFreq"])
+plt.hist(ch_orders["TotalChFreq"], bins='auto', alpha=0.7, rwidth=0.85, density=True)
 
+# Adding labels and title
+plt.xlabel('Number of Change Orders')
+plt.ylabel('Percentage Of Projects')
+plt.title('Distribution of projects by number of COs')
 
+# Displaying the histogram
+plt.show()

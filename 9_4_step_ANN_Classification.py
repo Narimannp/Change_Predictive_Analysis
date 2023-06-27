@@ -13,6 +13,10 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 import tensorflow as tf
 from sklearn.metrics import accuracy_score, confusion_matrix
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.callbacks import LearningRateScheduler
+from step_9_0_FeatureSelection_PCA import atr_list
+from step_9_0_FeatureSelection_ChiSquare import top_five_cat_atrs
 print(tf.__version__)
 
 def read_df():
@@ -22,7 +26,7 @@ def read_df():
             'ProjectCity', 'Population', 'Density',
              'ProjectBillingType','ProjectOperatingUnit', \
             'ProjectType','DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',\
-                    "Classification_1","Classification_2",\
+                    "ProjectClassification","Classification_1","Classification_2",\
                     "Freq_Class1_p_dur","Freq_Class1_p_sze","Freq_Class1_n_dur","Freq_Class1_n_sze","Freq_Class2_p_dur","Freq_Class2_p_sze",\
                     "Freq_Class2_n_dur","Freq_Class2_n_sze","Freq_Prov_p_dur","Freq_Prov_p_sze",\
                         "Freq_Prov_n_dur","Freq_Prov_n_sze","Freq_City_p_dur","Freq_City_p_sze","Freq_City_n_dur"\
@@ -37,7 +41,7 @@ def read_df():
 def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
     target_atr=prime_commit+"Ch"+existance_or_lvl
     if existance_or_lvl=="Lvl":
-        # ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
+        ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
         print("Change Level Classifiction")
         ch_orders[target_atr]=np.where(ch_orders[prime_commit+"ChPer"]<=boundry[0],0,1)
         ch_orders[target_atr]=np.where(((ch_orders[prime_commit+"ChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
@@ -45,25 +49,29 @@ def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
 
     elif existance_or_lvl=="Existance":
         print("Change Existance Classifiction")
-        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]==0.0)),1,0)
+        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>1)),1,0)
     else:
         print("Wrong Input...")
         
     return(ch_orders)
         
     return(ch_orders)
+
 def drop_atr(ch_orders,atr_list):
     ch_orders.drop(columns=atr_list,axis=1,inplace=True)
     return(ch_orders)
+
 def project_filter(ch_orders,atr,atr_class_list):
     ch_orders=ch_orders[ch_orders[atr]==(atr_class_list)]
     return(ch_orders)
+
 def split_x_y(ch_orders,change_category,existance_or_level):
     target_atr=change_category+"Ch"+existance_or_level
     y=ch_orders[target_atr]
     target_classification_list="PrimeChExistance,CommitChExistance,TotalChExistance,SalesChExistance,PrimeChLvl,CommitChLvl,TotalChLvl,SalesChLvl,PrimeChPer,CommitChPer,SalesChPer,TotalChPer".split(",")
     x=ch_orders.loc[:,~ch_orders.columns.isin(target_classification_list)]
     return(x,y)
+
 def outlier_remove(dataset,atrlist):
     for attribute in atrlist:
        describe=dataset.describe()
@@ -73,8 +81,7 @@ def outlier_remove(dataset,atrlist):
        dataset=dataset[(lowerfence<dataset[attribute]) & (dataset[attribute]<higherfence)]
     return(dataset) 
 
-def svm_classification_prep(ch_orders,x,y,test_size):
- 
+def classification_prep(ch_orders,x,y,test_size):
     a=x.dtypes=="object"
     categorical_atr_list=list(a.loc[x.dtypes=="object"].index)
     x=pd.get_dummies(x,columns=categorical_atr_list,drop_first=True)
@@ -84,28 +91,75 @@ def svm_classification_prep(ch_orders,x,y,test_size):
     x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
-def run_the_code(list_boundries,ch_existance_or_lvl,prime_or_commit,construction_or_service):
+def add_freq_atrs(df):
+    columns=df.columns
+    columns=columns.astype(str).tolist()
+    columns=[x for x in columns if "Freq" in x ]
+    df=df.drop(columns,axis=1)
+    return(df)
+    
+def run_the_code(list_boundries,ch_existance_or_lvl,prime_or_commit,construction_or_service,include_categorical):
     ch_orders=read_df()
-    # ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
+    ch_orders=add_freq_atrs(ch_orders)
+    ch_orders=project_filter(ch_orders,"ProjectType",construction_or_service)
     ch_orders=label_target_atr(ch_orders,list_boundries,ch_existance_or_lvl,prime_or_commit)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     x,y=split_x_y(ch_orders,prime_or_commit,ch_existance_or_lvl) 
-    x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y,.3)
-    return(ch_orders,x_train_str,x_test_str,y_train,y_test)
-ch_orders,x_train_str,x_test_str,y_train,y_test=run_the_code([2,10],"Existance","Prime","Construction")
+    
+    if include_categorical==True:
+        columns=ch_orders.columns
+        atrs=[atr for atr in atr_list if atr in columns]
+        x=x[atrs]
+        RunName="Model Accuracy-Numerical+"+str(len(top_five_cat_atrs))+"Categorical Attributes"
+    else:
+        x=x[atr_list]
+        RunName="Model Accuracy-NumericalAttributes"
+    x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.15)
+    return(ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName)
+
+ch_orders,columns,x_train_str,x_test_str,y_train,y_test,RunName=run_the_code(2,"Existance","Prime","Construction", True)
+
 ann=tf.keras.models.Sequential()
-ann.add(tf.keras.layers.Dense(units=185,activation="relu"))
-ann.add(tf.keras.layers.Dense(units=3,activation="sigmoid"))
-ann.add(tf.keras.layers.Dense(units=2,activation="sigmoid"))
+ann.add(tf.keras.layers.Dense(units=131,activation="relu"))
+ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
+ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
 ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
+# def lr_scheduler(epoch, lr):
+#     if epoch < 3:
+#         return lr
+#     else:
+#         return lr * tf.math.exp(-0.1)
+initial_learning_rate = 0.01
+optimizer = SGD(learning_rate=initial_learning_rate)
 ann.compile(optimizer="adam",loss="binary_crossentropy",metrics=["accuracy"])
-ann.fit(x_train_str,y_train,batch_size=32,epochs=100)
+
+history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=8,epochs=20)
+print(atr_list)
 y_pred_test=ann.predict(x_test_str)
 y_pred_test=y_pred_test>0.5
 y_pred_train=ann.predict(x_train_str)
 y_pred_train=y_pred_train>0.5
+#creating the distrubution of data variable
 dist=y_train.value_counts()
+#performance measument variables
 confusion_test=confusion_matrix(y_test,y_pred_test)
 confusion_train=confusion_matrix(y_train,y_pred_train)
 accuracy_test=accuracy_score(y_test,y_pred_test)
 accuracy_train=accuracy_score(y_train,y_pred_train)
+# summarize history for accuracy
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title(RunName)
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
