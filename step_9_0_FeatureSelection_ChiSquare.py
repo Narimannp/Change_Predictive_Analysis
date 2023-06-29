@@ -43,22 +43,19 @@ def categorical_numerical_atributes(df):
     numeric_atrs=list(numeric_df.columns)
     return(numeric_atrs,categorical_atrs)
 
-"Given the DF, boundry or list of boundries, type of analysis, and Prime or Commit, Labels the target attribute and returns the DF"
-def label_target_atr(ch_orders,boundry,existance_or_lvl,prime_commit):
-    target_atr=prime_commit+"Ch"+existance_or_lvl
-    if existance_or_lvl=="Multi-CLass":
-        # ch_orders=ch_orders[ch_orders[prime_commit+"ChPer"]!=0]
-        print("Multi-Class Classifiction")
-        ch_orders[target_atr]=np.where(ch_orders[prime_commit+"ChPer"]<=boundry[0],0,1)
-        ch_orders[target_atr]=np.where(((ch_orders[prime_commit+"ChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
-        ch_orders[target_atr]=np.where((ch_orders[prime_commit+"ChPer"]>boundry[1]),2,ch_orders[target_atr])
-    elif existance_or_lvl=="Binary":
-        print("Binary Classifiction")
+"Given the DF and boundry or list of boundries labels the target atrribute"
+def label_target_atr(ch_orders,boundry):
+    if type(boundry)==list:
+        target_atr="PrimeChMulti-Class"
+        print("Change Level Classifiction")
+        ch_orders[target_atr]=np.where(ch_orders["PrimeChPer"]<=boundry[0],0,1)
+        ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]<=boundry[1]) & (ch_orders["PrimeChPer"]>boundry[0])),1,ch_orders[target_atr])
+        ch_orders[target_atr]=np.where((ch_orders["PrimeChPer"]>boundry[1]),2,ch_orders[target_atr])
+    else: 
+        target_atr="PrimeChBinary"
+        print("Change Existance Classifiction")
         ch_orders[target_atr]=np.where(((ch_orders["PrimeChPer"]>boundry)),1,0)
-    else:
-        print("Wrong Input...")
-        
-    return(ch_orders)
+    return(ch_orders,target_atr)
 
 "given the DF, the attribute, and specific CLass of the attribute,removes other classes from the atribute"
 def project_filter(ch_orders,atr,atr_class_list):
@@ -75,19 +72,20 @@ def chi_square(df,target_atr,number_of_atrs):
             chi_square_result.loc[str(column),"chi_value"]=chi2
             chi_square_result.loc[str(column),"p_value"]=p_value
     chi_square_result=chi_square_result.sort_values(by="chi_value",ascending=False)
-    top_atrs=chi_square_result.head(number_of_atrs).index.tolist()
+    top_atrs=chi_square_result.index.tolist()
     return(chi_square_result,top_atrs)
 
-def run_the_code(number_of_atrs):
+"Given the boundry or list of boundries and the number of desired atributes returns the chi-square results and the important attributes"
+def run_the_code(number_of_atrs,target_boundry):
     ch_orders=read_df()
     ch_orders=select_atrs(ch_orders,"")
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
     numeric_atrs,categorical_atrs=categorical_numerical_atributes(ch_orders)
-    ch_orders=label_target_atr(ch_orders,2,"Binary","Prime")
-    categorical_atrs.append("PrimeChPer")
+    ch_orders,target_atr=label_target_atr(ch_orders,target_boundry)
+    categorical_atrs.append(target_atr)
     ch_orders=ch_orders[categorical_atrs]
-    chi_square_result,top_five_atrs=chi_square(ch_orders,"PrimeChPer",number_of_atrs)
-    return (ch_orders,chi_square_result,top_five_atrs)
-ch_orders,chi_square_result,top_five_cat_atrs=run_the_code(2)
+    chi_square_result,sorted_atrs=chi_square(ch_orders,target_atr,number_of_atrs)
+    return (ch_orders,chi_square_result,sorted_atrs)
+ch_orders,chi_square_result,sorted_cat_atrs=run_the_code(number_of_atrs=3,target_boundry=3,)
 
 

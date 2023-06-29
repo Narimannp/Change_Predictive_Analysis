@@ -70,6 +70,16 @@ def ch_freq(ch_orders):
         df["Frq_Classification_p_sze"]=df["ProjectClassification"].map(dict_cls_p_s)
         df["Frq_Classification_n_dur"]=df["ProjectClassification"].map(dict_cls_n_d)
         df["Frq_Classification_n_sze"]=df["ProjectClassification"].map(dict_cls_n_s)
+        
+
+        dict_cls_p_d=df.groupby("ProjectOperatingUnit")["freq_p_prime_dur"].mean()
+        dict_cls_p_s=df.groupby("ProjectOperatingUnit")["freq_p_prime_sze"].mean()
+        dict_cls_n_d=df.groupby("ProjectOperatingUnit")["freq_p_prime_dur"].mean()
+        dict_cls_n_s=df.groupby("ProjectOperatingUnit")["freq_p_prime_sze"].mean()
+        df["Frq_OPU_p_dur"]=df["ProjectOperatingUnit"].map(dict_cls_p_d)
+        df["Frq_OPU_p_sze"]=df["ProjectOperatingUnit"].map(dict_cls_p_s)
+        df["Frq_OPU_n_dur"]=df["ProjectOperatingUnit"].map(dict_cls_n_d)
+        df["Frq_OPU_n_sze"]=df["ProjectOperatingUnit"].map(dict_cls_n_s)
 
         dict_1_p_d=df.groupby("Classification_1")["freq_p_prime_dur"].mean()
         dict_1_p_s=df.groupby("Classification_1")["freq_p_prime_sze"].mean()    
