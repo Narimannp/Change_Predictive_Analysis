@@ -137,16 +137,7 @@ def run_the_code():
     projects,ch_orders=read_df()  
     ch_orders,a=prep_for_classification(ch_orders)
     ch_orders=divide_classification(ch_orders)
-    # projects,ch_orders=project_filter(projects,ch_orders,"ProjectType",["Construction"])
-    # ch_orders=label_target_atr(ch_orders,0.01,0.09)
-    # ch_orders=ch_orders[ch_orders["PrimeChPer"]!=0]
-    # ch_orders=ch_orders[(ch_orders["PrimeChPer"]<1)&(ch_orders["PrimeChPer"]>-1)]
-    # ch_orders["Duration"]=abs(ch_orders["Duration"])
-    # ch_orders=ch_orders[ch_orders["Duration"]>10]
-    # ch_orders=outlier_remove(ch_orders,["DailyCost"])
-    # ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
-    # ch_orders=outlier_remove(ch_orders,["Duration"])
-    # ch_orders["ProjectClassification"]=np.where(ch_orders["ProjectClassification"]=="NO JOB CLASSIFICATION ASSIGNED","INDUST.HYDRO",ch_orders["ProjectClassification"])
+
 
     ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\7_data_prep_ch_orders.csv',index=False)
     return(projects,ch_orders,a)

@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 import tensorflow as tf
 from sklearn.metrics import accuracy_score, confusion_matrix
-from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.callbacks import LearningRateScheduler
 from step_9_0_FeatureSelection_PCA import atr_list
 from step_9_0_FeatureSelection_ChiSquare import sorted_cat_atrs as sorted_cat_atrs
@@ -44,9 +44,11 @@ def select_atrs(df,atr_types):
         loc_columns=loc_columns+temp_loc_columns
     atrs=target_atrs+orig_cat_atrs+orig_num_atrs+Freq_atrs+loc_atrs_add+loc_columns
 
-
+    
     if (("freq" not in atr_types )and( "orig_cat" not in atr_types)) or (("freq" in atr_types )and( "orig_cat" in atr_types)):
-        raise ValueError("1 NOT BOTH or NONE of Orig-cat and Freq attributes should be presented")
+        print("both")
+        RunName="both"
+        # raise ValueError("1 NOT BOTH or NONE of Orig-cat and Freq attributes should be presented")
     elif "orig_cat" in atr_types:
         df=df[[x for x in atrs if x not in Freq_atrs]]
         RunName="ATRs=Orignal"
@@ -56,11 +58,11 @@ def select_atrs(df,atr_types):
     if "loc_add" not in atr_types:
         columns=df.columns.astype(str).tolist()
         df=df[[x for x in columns if x not in loc_atrs_add]]
-        RunName=RunName+"-No new-location atrs"
+        RunName=RunName+",No new-location atrs"
     if "loc_atrs" not in atr_types:
         columns=df.columns.astype(str).tolist()
         df=df[[x for x in columns if x not in loc_columns]]
-        RunName=RunName+" -No old-location atrs"
+        RunName=RunName+" ,No old-location atrs"
     return(df,RunName)
 
 "Given the DF and boundry or list of boundries labels the target atrribute"
@@ -120,23 +122,25 @@ def ANN(x_train_str,y_train,x_test_str, y_test,num_epocs):
     ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
-    # def lr_scheduler(epoch, lr):
-    #     if epoch < 3:
-    #         return lr
-    #     else:
-    #         return lr * tf.math.exp(-0.1)
-    # initial_learning_rate = 0.01
-    # optimizer = SGD(learning_rate=initial_learning_rate)
+    initial_learning_rate=.002
+    def lr_scheduler(epoch, initial_learning_rate):
+        if epoch < 100:
+            return initial_learning_rate
+        else:
+            return initial_learning_rate*tf.math.exp(0.005)
 
-    ann.compile(optimizer="adam",loss="binary_crossentropy",metrics=["accuracy"])
+
+    optimizer = Adam(learning_rate=initial_learning_rate)
+    lr_callback = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
+    ann.compile(optimizer=optimizer,loss="binary_crossentropy",metrics=["accuracy"],)
     
     "Creating dictionary for class weights"
-    class_distribution=y_train.value_counts()
+    class_distribution=y_test.value_counts()
     weights=round(1/(class_distribution/sum(class_distribution)),3)
     class_indexes=weights.index
     dict_keys=[x[0] for x in class_indexes]
     weight_dictionary=dict(zip(dict_keys,weights))
-    history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=16,epochs=num_epocs,class_weight=weight_dictionary)
+    history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=16,epochs=num_epocs,class_weight=weight_dictionary,callbacks=[lr_callback])
     
     y_pred_test=ann.predict(x_test_str)
     y_pred_test=y_pred_test>0.5
@@ -191,9 +195,8 @@ def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.25)
     confusion_test,confusion_train,accuracy_test,accuracy_train,history=ANN(x_train_str,y_train,x_test_str, y_test,epocs)
     visulise(history,RunName)
-    return(ch_orders,confusion_test,confusion_train,x_train_str,y_train,RunName)
+    return(ch_orders,confusion_test,confusion_train,x_train_str,y_train,y_test,RunName)
 
 
-ch_orders,confusion_test,confusion_train,x_train_str,y_train,RunName=\
-    run_the_code(list_boundries=4,feature_eng=True,atr_types=["orig_cat","loc_atrs"],epocs=200)
-
+ch_orders,confusion_test,confusion_train,x_train_str,y_train,y_test,RunName=\
+    run_the_code(list_boundries=4,feature_eng=True,atr_types=["freq"],epocs=200)

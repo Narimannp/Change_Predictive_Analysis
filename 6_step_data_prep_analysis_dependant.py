@@ -10,14 +10,13 @@ import numpy as np
 import matplotlib.pylab as plt
 import seaborn as sns
 
+    #Reads Existing datasets, 1-Projects,2-ChangeOrders
 def read_df():
-    #Read external datasets, 1-Projects,2-Canadacities
     projects =pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\5_data_prep_project.csv')
     ch_orders=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\5_data_prep_ch_orders.csv')
-
     return(projects,ch_orders)
-# projects,ch_orders=read_df()
 
+# Prepers the attributes' types and missing datapoints
 def attribute_preperation(projects):
     projects["ProjectClassification"]=projects["ProjectClassification"].apply(lambda x:x.upper())
     projects["first_ch_date"]=pd.to_datetime(projects["first_ch_date"],format="%Y-%m-%d")
@@ -30,9 +29,8 @@ def attribute_preperation(projects):
     projects=pd.concat([projects_w_ch,projects_wh_ch],ignore_index=True)
     projects=projects[["ProjectId","ProjectBaseContractValue","Duration","ChangeDuration","ProjectExpectedStartDate","ProjectExpectedEndDate","first_ch_date","last_ch_date","missing_per2_up","missing_per2_low","ProjectProvince","ProjectCity","population","density","ProjectClassification","ProjectBillingType","ProjectDepartment","ProjectOperatingUnit","ProjectType",]]
     return (projects)
-# projects=attribute_preperation(projects)
 
-
+#Removes the projects with start and end point not aligned with our analysis
 def projects_out_of_date_boundry(ch_orders,ch_events,projects):
     projects["ProjectExpectedStartDate"]=projects["ProjectExpectedStartDate"].apply(lambda x:str(x).split(" ")[0])
     projects["ProjectExpectedStartDate"]=pd.to_datetime(projects["ProjectExpectedStartDate"],format="%Y-%m-%d")
@@ -44,6 +42,7 @@ def projects_out_of_date_boundry(ch_orders,ch_events,projects):
     print("STEP_4 IS DONE ....")
     return(ch_orders,ch_events,projects)
 
+#Given the DF and list of attributes, removes the ouyliers using the IQR method
 def outlier_remove(dataset,atrlist):
     for attribute in atrlist:
        describe=dataset.describe()
