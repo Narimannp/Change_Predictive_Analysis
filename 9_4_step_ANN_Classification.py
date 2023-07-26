@@ -29,6 +29,16 @@ def read_df():
 
 "Given the Df and types of attributes necessary, return the df with required attribute types"
 def select_atrs(df,atr_types):
+    df=df[['BaseValue', 'ProjectClassification', 'BillType',
+           'OperatingUnit', 'ProjectType',
+           'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',
+           'Classification_1', 'Classification_2', 'DurationModified','Frq_Classification_p_dur',
+           'Frq_Classification_p_sze', 'Frq_Classification_n_dur',
+           'Frq_Classification_n_sze', 'Frq_OPU_p_dur', 'Frq_OPU_p_sze',
+           'Frq_OPU_n_dur', 'Frq_OPU_n_sze', 'Frq_Class1_p_dur',
+           'Frq_Class1_p_sze', 'Frq_Class1_n_dur', 'Frq_Class1_n_sze',
+           'Frq_Class2_p_dur', 'Frq_Class2_p_sze', 'Frq_Class2_n_dur',
+           'Frq_Class2_n_sze']]
     loc_columns=[]
     temp_loc_columns=[]
     target_atrs=['PrimeChPer']
@@ -122,12 +132,13 @@ def ANN(x_train_str,y_train,x_test_str, y_test,num_epocs):
     ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
-    initial_learning_rate=.002
+    initial_learning_rate=.01
     def lr_scheduler(epoch, initial_learning_rate):
         if epoch < 100:
             return initial_learning_rate
         else:
-            return initial_learning_rate*tf.math.exp(0.005)
+            return initial_learning_rate
+            # return initial_learning_rate*tf.math.exp(-0.005)
 
 
     optimizer = Adam(learning_rate=initial_learning_rate)
@@ -199,4 +210,5 @@ def run_the_code(list_boundries,feature_eng,atr_types,epocs):
 
 
 ch_orders,confusion_test,confusion_train,x_train_str,y_train,y_test,RunName=\
-    run_the_code(list_boundries=4,feature_eng=True,atr_types=["freq"],epocs=200)
+    run_the_code(list_boundries=4,feature_eng=False,atr_types=["freq","orig_cat"],epocs=100)
+print(ch_orders.columns)

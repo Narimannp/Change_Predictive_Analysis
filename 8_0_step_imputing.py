@@ -170,7 +170,6 @@ ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mi
 
 ch_orders=ch_orders[ch_orders["ProjectType"]=="Construction"]
 ch_orders["TotalChFreq"]=ch_orders["PrimeChFreq_p"]+ch_orders["PrimeChFreq_n"]
-ch_orders=ch_orders[ch_orders["TotalChFreq"]>25]
 # ch_orders=outlier_remove(ch_orders, ["TotalChFreq"])
 plt.hist(ch_orders["TotalChFreq"], bins='auto', alpha=0.7, rwidth=0.85, density=True)
 

@@ -75,7 +75,7 @@ def numeric_atr_list(df):
     return(numeric_atr)
 
 "given the df, filters the data to numeric attributes then normalises the attributes by range normalization into 0 to 1 range"
-def normalize(df):
+def standardize(df):
     num_atr=numeric_atr_list(df)
     df_numeric=df[num_atr]
     sc=StandardScaler().fit(df_numeric)
@@ -132,7 +132,7 @@ def run_the_code(n):
     ch_orders=select_atrs(ch_orders,"")
     print(ch_orders.columns)
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
-    ch_orders_str=normalize(ch_orders)
+    ch_orders_str=standardize(ch_orders)
     eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance=pca(ch_orders_str,n)
     atr_list=best_atrs_wh_coliniarity(ch_orders,eigenvectors)
     ch_orders_str.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\9.0_PCA.csv')
