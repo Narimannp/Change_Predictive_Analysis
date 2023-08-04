@@ -29,50 +29,44 @@ def read_df():
 
 "Given the Df and types of attributes necessary, return the df with required attribute types"
 def select_atrs(df,atr_types):
-    df=df[['BaseValue', 'ProjectClassification', 'BillType',
-           'OperatingUnit', 'ProjectType',
-           'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer',
-           'Classification_1', 'Classification_2', 'DurationModified','Frq_Classification_p_dur',
-           'Frq_Classification_p_sze', 'Frq_Classification_n_dur',
-           'Frq_Classification_n_sze', 'Frq_OPU_p_dur', 'Frq_OPU_p_sze',
-           'Frq_OPU_n_dur', 'Frq_OPU_n_sze', 'Frq_Class1_p_dur',
-           'Frq_Class1_p_sze', 'Frq_Class1_n_dur', 'Frq_Class1_n_sze',
-           'Frq_Class2_p_dur', 'Frq_Class2_p_sze', 'Frq_Class2_n_dur',
-           'Frq_Class2_n_sze']]
     loc_columns=[]
     temp_loc_columns=[]
     target_atrs=['PrimeChPer']
-    orig_cat_atrs="OperatingUnit,BillType,ProjectClassification,Classification_1,Classification_2,City,Province,ProjectType".split(",")
+    loc_orig=["City","Province"]
+    orig_cat_atrs="OperatingUnit,BillType,ProjectClassification,Classification_1,Classification_2,ProjectType".split(",")
     orig_num_atrs="BaseValue,DurationModified".split(",")
     loc_keys="City,Prov".split(",")
     loc_atrs_add="Population,Density".split(",")
     columns=df.columns
     columns=columns.astype(str).tolist()
     Freq_atrs=[x for x in columns if "Frq" in x ]
-    for loc_key in loc_keys: 
-        temp_loc_columns=[x for x in columns if loc_key in x ]
-        loc_columns=loc_columns+temp_loc_columns
-    atrs=target_atrs+orig_cat_atrs+orig_num_atrs+Freq_atrs+loc_atrs_add+loc_columns
+    Freq_atrs_wh_loc=[x for x in Freq_atrs if not any(str_loc_keys in x for str_loc_keys in loc_keys) ]
+    loc_frq=[x for x in Freq_atrs if  any(str_loc_keys in x for str_loc_keys in loc_keys) ]
+    RunName="Num"
 
-    
-    if (("freq" not in atr_types )and( "orig_cat" not in atr_types)) or (("freq" in atr_types )and( "orig_cat" in atr_types)):
-        print("both")
-        RunName="both"
+
+    atrs=target_atrs+orig_num_atrs
+    for atr in atr_types:
+        if atr not in ["freq","cat_no_loc","loc_add","cat_loc"]:
+            raise ValueError("Wrong Atribute Type Input")
+    if ("freq" in atr_types ):
+        RunName=RunName+"+Frq_wh_loc"
+        atrs=atrs+Freq_atrs_wh_loc
         # raise ValueError("1 NOT BOTH or NONE of Orig-cat and Freq attributes should be presented")
-    elif "orig_cat" in atr_types:
-        df=df[[x for x in atrs if x not in Freq_atrs]]
-        RunName="ATRs=Orignal"
-    else:
-        df=df[[x for x in atrs if x not in orig_cat_atrs]]
-        RunName="ATRs=Freq"
-    if "loc_add" not in atr_types:
-        columns=df.columns.astype(str).tolist()
-        df=df[[x for x in columns if x not in loc_atrs_add]]
-        RunName=RunName+",No new-location atrs"
-    if "loc_atrs" not in atr_types:
-        columns=df.columns.astype(str).tolist()
-        df=df[[x for x in columns if x not in loc_columns]]
-        RunName=RunName+" ,No old-location atrs"
+    if "cat_no_loc" in atr_types:
+        atrs=atrs+orig_cat_atrs
+        RunName=RunName+"+cat_wh_loc"
+    if "cat_loc" in atr_types:
+        atrs=atrs+loc_orig
+        RunName=RunName+"+cat_loc"
+    if "loc_add" in atr_types:
+        atrs=atrs+loc_atrs_add
+        RunName=RunName+"+loc_add"
+    if (any(loc_type in atr_types for loc_type in ["cat_loc","loc_add"])) and ("freq" in atr_types) :
+        atrs=atrs+loc_frq
+        RunName=RunName+"+Frq_loc"
+
+    df=df[atrs]
     return(df,RunName)
 
 "Given the DF and boundry or list of boundries labels the target atrribute"
@@ -126,6 +120,9 @@ def classification_prep(ch_orders,x,y,test_size):
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
 def ANN(x_train_str,y_train,x_test_str, y_test,num_epocs):
+    seed = 42
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
     input_size=(len(x_train_str.columns))
     ann=tf.keras.models.Sequential()
     ann.add(tf.keras.layers.Dense(units=input_size,activation="relu"))
@@ -133,6 +130,7 @@ def ANN(x_train_str,y_train,x_test_str, y_test,num_epocs):
     ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
     initial_learning_rate=.01
+    
     def lr_scheduler(epoch, initial_learning_rate):
         if epoch < 100:
             return initial_learning_rate
@@ -184,7 +182,7 @@ def visulise(history,RunName):
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
-
+"inputlist for atr_types=[freq,cat_no_loc,cat_loc,loc_add"
 def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     ch_orders=read_df()
     ch_orders=project_filter(ch_orders,"ProjectType","Construction")
@@ -206,9 +204,9 @@ def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.25)
     confusion_test,confusion_train,accuracy_test,accuracy_train,history=ANN(x_train_str,y_train,x_test_str, y_test,epocs)
     visulise(history,RunName)
-    return(ch_orders,confusion_test,confusion_train,x_train_str,y_train,y_test,RunName)
+    return(ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName)
+ 
 
-
-ch_orders,confusion_test,confusion_train,x_train_str,y_train,y_test,RunName=\
-    run_the_code(list_boundries=4,feature_eng=False,atr_types=["freq","orig_cat"],epocs=100)
+ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName=\
+    run_the_code(list_boundries=4,feature_eng=False,atr_types=["cat_no_loc","freq"],epocs=30)
 print(ch_orders.columns)

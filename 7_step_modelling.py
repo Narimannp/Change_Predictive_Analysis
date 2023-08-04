@@ -141,6 +141,7 @@ def run_the_code():
 
     # ch_orders=ch_orders[(ch_orders["missing_per2_up"]<0.26)&(ch_orders["missing_per2_low"]<0.26)]
     ch_orders.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\7_data_prep_ch_orders.csv',index=False)
+    projects.to_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\7_data_prep_projects.csv',index=False)
     return(projects,ch_orders,a)
 projects,ch_orders,a=run_the_code()
 # dist_prime_ch_lvl=ch_orders.groupby("PrimeChLvl").count()
