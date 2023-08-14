@@ -1,3 +1,9 @@
+# -*-- coding: utf-8 -*-
+"""
+Created on Tue Aug  8 07:44:08 2023
+
+@author: narim
+"""
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jan 25 18:38:10 2023
@@ -19,8 +25,17 @@ from sklearn.metrics import f1_score,make_scorer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
 from sklearn import tree
-from step_9_0_FeatureSelection_PCA import atr_list
-from step_9_0_FeatureSelection_ChiSquare import sorted_cat_atrs as sorted_cat_atrs
+# from step_9_0_FeatureSelection_PCA import atr_list
+# from step_9_0_FeatureSelection_ChiSquare import sorted_cat_atrs as sorted_cat_atrs
+from collections import defaultdict
+
+import matplotlib.pyplot as plt
+from scipy.cluster import hierarchy
+from scipy.cluster.hierarchy import dendrogram,linkage
+from scipy.spatial.distance import squareform
+from scipy.stats import spearmanr
+from sklearn.inspection import permutation_importance
+
 
 def read_df():
     ch_orders=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
@@ -94,7 +109,7 @@ def select_atrs(df,atr_types):
         RunName=RunName+"+Frq_loc"
 
     df=df[atrs]
-    return(df,RunName,)
+    return(df,RunName)
 
 def drop_atr(ch_orders,atrs_list):
     ch_orders.drop(columns=atrs_list,axis=1,inplace=True)
@@ -140,12 +155,12 @@ def custom_scorer(y_true, y_pred):
 def random_forest_classification(x_train,x_test,y_train,y_test):
     # hyperparameter grid to search
     param_grid = {
-    'n_estimators': (400,400),           # Number of decision trees in the forest
+    'n_estimators': ( 400,1),           # Number of decision trees in the forest
     'max_depth': (8,8),              # Maximum depth of each decision tree
     'min_samples_split': (15, 15),          # Minimum number of samples required to split an internal node
     'min_samples_leaf': (7, 7),
-    'criterion':('gini' ,'gini') ,          # Minimum number of samples required in a leaf node
-    'max_features': ['auto', 'sqrt'],        # Number of features to consider when looking for the best split
+    # 'criterion':('entropy' ,'gini')           # Minimum number of samples required in a leaf node
+    # 'max_features': ['auto', 'sqrt'],        # Number of features to consider when looking for the best split
     # 'bootstrap': (True, False),               # Whether to use bootstrapped samples
     }
     custom_scorer2 = make_scorer(custom_scorer)
@@ -168,8 +183,64 @@ def random_forest_classification(x_train,x_test,y_train,y_test):
     importances = pd.DataFrame(data=best_rf_model.feature_importances_,index=x_train.columns).sort_values(by=0,axis=0,ascending=False)
     f1_score_train=custom_scorer(y_train,y_train_pred)
     f1_score_test=custom_scorer(y_test,y_test_pred)
-    return(best_params,best_tree,importances,confusion_test,accuracy_test,confusion_train,accuracy_train,f1_score_train,f1_score_test)
+    return(best_params,best_tree,best_rf_model,importances,confusion_test,accuracy_test,confusion_train,accuracy_train,f1_score_train,f1_score_test)
 
+
+def permutation_importances(best_rf_model,x_train,y_train,):
+    permutation_result = permutation_importance(best_rf_model, x_train, y_train, n_repeats=10, random_state=42)
+    perm_sorted_idx = permutation_result.importances_mean.argsort()
+    tree_importance_sorted_idx = np.argsort(best_rf_model.feature_importances_)
+    tree_indices = np.arange(0, len(best_rf_model.feature_importances_)) + 0.5
+    # plt.rcParams['axes.linewidth'] = 12
+    # plt.rcParams['ytick.labelsize'] = 200
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(120, 80))
+    ax1.barh(tree_indices, best_rf_model.feature_importances_[tree_importance_sorted_idx], height=0.7)
+    ax1.set_yticks(tree_indices)
+    ax1.set_yticklabels(x_train.columns[tree_importance_sorted_idx])
+    ax1.set_ylim((0, len(best_rf_model.feature_importances_)))
+    boxplot=ax2.boxplot(
+        permutation_result.importances[perm_sorted_idx].T,
+        vert=False,
+        labels=x_train.columns[perm_sorted_idx]
+    )
+    for box in boxplot['boxes']:
+       box.set_linewidth(10)  # Adjust line width here
+    for cap in boxplot['caps']:
+       cap.set(color ='#8B008B',linewidth = 12)
+    ax2.tick_params(axis='both', which='major', labelsize=24)  # Adjust font size here
+    fig.tight_layout()
+    plt.show()
+    return(perm_sorted_idx,permutation_result)
+def higherarchi_clustring(x_train):
+    # ax1 = plt.subplots(1, 2, figsize=(480, 360))
+    pearson,spearman = pearson_spearman(x_train)
+
+    # # Ensure the correlation matrix is symmetric
+    # corr = (corr + corr.T) / 2
+    # np.fill_diagonal(corr, 1)
+
+     # We convert the correlation matrix to a distance matrix before performing
+     # hierarchical clustering using Ward's linkage.
+    # fig,ax3 = plt.subplots(figsize=(360, 120))
+    # plt.rcParams['lines.linewidth'] = 25
+    # plt.rcParams['axes.linewidth'] = 12
+    # plt.rcParams['ytick.labelsize'] = 200
+    # distance_matrix = 1 - np.abs(spearman)
+    # dist_linkage = hierarchy.ward(squareform(distance_matrix))
+    # dendro = hierarchy.dendrogram(
+    # dist_linkage,ax=ax3, labels=x_train.columns.tolist(),  leaf_rotation=90,leaf_font_size=100  
+    # )
+    # plt.show()
+    # dendro_idx = np.arange(0, len(dendro["ivl"]))
+
+    # ax2.imshow(spearman[dendro["leaves"], :][:, dendro["leaves"]])
+    # ax2.set_xticks(dendro_idx)
+    # ax2.set_yticks(dendro_idx)
+    # ax2.set_xticklabels(dendro["ivl"], rotation="vertical")
+    # ax2.set_yticklabels(dendro["ivl"])
+    # fig.tight_layout()
+    # plt.show()
+    return(spearman)
 def classification_prep(ch_orders,x,y,test_size):
     a=x.dtypes=="object"
     categorical_atr_list=list(a.loc[x.dtypes=="object"].index)
@@ -177,6 +248,15 @@ def classification_prep(ch_orders,x,y,test_size):
     x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=test_size,random_state=0)
     y_train=np.array(y_train).ravel()
     return(x_train,x_test,y_train,y_test)
+
+def pearson_spearman(df):
+    # df=df["Date_Diff,Population".split(",")]
+    for column in df:
+       #Range normalizing attributes
+       df[column]=(df[column]-df[column].min())/(df[column].max()-df[column].min())
+    pearson=df.corr(method='pearson', min_periods=1)
+    spearman=df.corr(method='spearman', min_periods=1)
+    return(pearson,spearman)
 
 def prediction_output(atr_types,best_params,feature_eng,list_boundries,y_train,accuracy_train,accuracy_test,f1_train,f1_test):
     output=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\RF_results.csv')
@@ -230,14 +310,12 @@ def run_the_code(list_boundries,feature_eng,atr_types):
     ch_orders,RunName=select_atrs(ch_orders,atr_types)
     ch_orders=label_target_atr(ch_orders,list_boundries)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
-
-
     x,y=split_x_y(ch_orders) 
     if feature_eng==True:
         columns=ch_orders.columns
-        atrs=[atr for atr in atr_list if atr in columns]
-        cat_atrs=[atr for atr in sorted_cat_atrs if atr in columns]
-        x=x[atrs+cat_atrs]
+        # atrs=[atr for atr in atr_list if atr in columns]
+        # cat_atrs=[atr for atr in sorted_cat_atrs if atr in columns]
+        # x=x[atrs+cat_atrs]
         RunName=RunName+"\n w FE"
     else:
         RunName=RunName+"\n wh FE"
@@ -266,19 +344,20 @@ def run_the_code(list_boundries,feature_eng,atr_types):
            'OperatingUnit_Infrastructure', 'ProjectClassification_INDUST.AUTO',
            'ProjectClassification_COMM.ARTS', 'ProjectClassification_COMM.CASINO',
            'ProjectClassification_COMM.BREWERY']
-
     x_train,x_test,y_train,y_test=classification_prep(ch_orders,x,y,.25)
-    # x_train=drop_atr(x_train,atr_to_drop)
-    # x_test=drop_atr(x_test,atr_to_drop)
-    # x_train=drop_atr(x_train,atr2_to_drop)
-    # x_test=drop_atr(x_test,atr2_to_drop)
-    best_params,best_tree,importances,confusion_test,accuracy_test,confusion_train,accuracy_train,f1_train,f1_test=random_forest_classification(x_train,x_test,y_train,y_test)
-    run_results,output=prediction_output(atr_types,best_params,feature_eng,list_boundries,y_train,accuracy_train,accuracy_test,f1_train,f1_test)
-    visulize_tree(best_tree,x_train,y)
-    return(ch_orders,importances,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_train,f1_test)
+    x_train=drop_atr(x_train,atr_to_drop)
+    x_test=drop_atr(x_test,atr_to_drop)
+    x_train=drop_atr(x_train,atr2_to_drop)
+    x_test=drop_atr(x_test,atr2_to_drop)
+    best_params,best_tree,best_rf_model,importances,confusion_test,accuracy_test,confusion_train,accuracy_train,f1_train,f1_test=\
+    random_forest_classification(x_train,x_test,y_train,y_test)
+    perm_sorted_idx,permutation_result=permutation_importances(best_rf_model,x_train,y_train,)
+    # spearman=higherarchi_clustring(x_train)
+    # run_results,output=\
+        # prediction_output(atr_types,best_params,feature_eng,list_boundries,y_train,accuracy_train,accuracy_test,f1_train,f1_test)
+    # spearman,dendro=visulize_tree(best_tree,x_train,y)
+    return(ch_orders,importances,perm_sorted_idx,permutation_result,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_train,f1_test)
 
 
-ch_orders,importances,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_score_train,f1_score_test=\
-    run_the_code(list_boundries=4,feature_eng=False,atr_types=["freq","cat_no_loc"])
-
-a=ch_orders
+ch_orders,importances,perm_sorted_idx,permutation_result,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_score_train,f1_score_test=\
+    run_the_code(list_boundries=4,feature_eng=False,atr_types=["cat_no_loc","freq","cat_loc"])

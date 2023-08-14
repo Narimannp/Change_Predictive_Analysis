@@ -17,6 +17,8 @@ from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras.callbacks import LearningRateScheduler
 from step_9_0_FeatureSelection_PCA import atr_list
 from step_9_0_FeatureSelection_ChiSquare import sorted_cat_atrs as sorted_cat_atrs
+from sklearn.metrics import f1_score,make_scorer,balanced_accuracy_score
+import tensorflow_addons as tfa
 print(tf.__version__)
 
 "Reads datasets with require attributes"
@@ -119,68 +121,100 @@ def classification_prep(ch_orders,x,y,test_size):
     x_test_str=pd.DataFrame(data=sc.transform(x_test),index=x_test.index,columns=x_test.columns)
     return(x_train,x_train_str,x_test_str,y_train,y_test)
 
-def ANN(x_train_str,y_train,x_test_str, y_test,num_epocs):
+class F1ScoreCallback(tf.keras.callbacks.Callback):
+    def __init__(self, validation_data, train_data):
+        self.validation_data = validation_data
+        self.train_data = train_data
+        self.train_f1_scores = []
+        self.val_f1_scores = []
+
+    def on_epoch_end(self, epoch, logs=None):
+        x_train, y_train = self.train_data
+        y_pred_train = self.model.predict(x_train)
+        y_pred_train = (y_pred_train > 0.5).astype(int)
+        train_f1_score = f1_score(y_train, y_pred_train)
+        self.train_f1_scores.append(train_f1_score)
+
+        x_val, y_val = self.validation_data
+        y_pred_val = self.model.predict(x_val)
+        y_pred_val = (y_pred_val > 0.5).astype(int)
+        val_f1_score = f1_score(y_val, y_pred_val)
+        self.val_f1_scores.append(val_f1_score)
+def lr_scheduler(epoch, initial_learning_rate):
+    if epoch < 30:
+        return initial_learning_rate
+    else:
+        return initial_learning_rate * tf.math.exp(-0.003 * (epoch - 30))
+
+def ANN(x_train_str, y_train, x_test_str, y_test, num_epochs):
     seed = 42
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    input_size=(len(x_train_str.columns))
-    ann=tf.keras.models.Sequential()
-    ann.add(tf.keras.layers.Dense(units=input_size,activation="relu"))
-    ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
-    ann.add(tf.keras.layers.Dense(units=4,activation="sigmoid"))
-    ann.add(tf.keras.layers.Dense(units=1,activation="sigmoid"))
-    initial_learning_rate=.01
-    
-    def lr_scheduler(epoch, initial_learning_rate):
-        if epoch < 100:
-            return initial_learning_rate
-        else:
-            return initial_learning_rate
-            # return initial_learning_rate*tf.math.exp(-0.005)
+    input_size = (len(x_train_str.columns))
+    ann = tf.keras.models.Sequential()
+    ann.add(tf.keras.layers.Dense(units=input_size, activation="relu"))
+    ann.add(tf.keras.layers.Dense(units=4, activation="sigmoid"))
+    ann.add(tf.keras.layers.Dense(units=4, activation="sigmoid"))
+    ann.add(tf.keras.layers.Dense(units=1, activation="sigmoid"))
+    initial_learning_rate = .01
 
 
-    optimizer = Adam(learning_rate=initial_learning_rate)
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=initial_learning_rate)
     lr_callback = tf.keras.callbacks.LearningRateScheduler(lr_scheduler)
-    ann.compile(optimizer=optimizer,loss="binary_crossentropy",metrics=["accuracy"],)
-    
-    "Creating dictionary for class weights"
-    class_distribution=y_test.value_counts()
-    weights=round(1/(class_distribution/sum(class_distribution)),3)
-    class_indexes=weights.index
-    dict_keys=[x[0] for x in class_indexes]
-    weight_dictionary=dict(zip(dict_keys,weights))
-    history=ann.fit(x_train_str,y_train,validation_data=(x_test_str, y_test),batch_size=16,epochs=num_epocs,class_weight=weight_dictionary,callbacks=[lr_callback])
-    
-    y_pred_test=ann.predict(x_test_str)
-    y_pred_test=y_pred_test>0.5
-    y_pred_train=ann.predict(x_train_str)
-    y_pred_train=y_pred_train>0.5
-    #creating the distrubution of data variable
+    ann.compile(optimizer=optimizer, loss="binary_crossentropy", metrics=[tfa.metrics.F1Score(num_classes=1)])
 
-    #performance measument variables
-    confusion_test=confusion_matrix(y_test,y_pred_test)
-    confusion_train=confusion_matrix(y_train,y_pred_train)
-    accuracy_test=accuracy_score(y_test,y_pred_test)
-    accuracy_train=accuracy_score(y_train,y_pred_train)
-    return(confusion_test,confusion_train,accuracy_test,accuracy_train,history)
+    # Creating dictionary for class weights
+    class_distribution = y_test.value_counts()
+    weights = round(1 / (class_distribution / sum(class_distribution)), 3)
+    class_indexes = weights.index
+    dict_keys = [x[0] for x in class_indexes]
+    weight_dictionary = dict(zip(dict_keys, weights))
 
-def visulise(history,RunName):
-    "summarize history for accuracy"
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
-    plt.title(RunName)
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
+    f1_score_callback = F1ScoreCallback(validation_data=(x_test_str, y_test), train_data=(x_train_str, y_train))
 
-    "summarize history for loss"
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
+    history = ann.fit(x_train_str, y_train, validation_data=(x_test_str, y_test), batch_size=16, epochs=num_epochs,
+                      class_weight=weight_dictionary, callbacks=[lr_callback, f1_score_callback])
+
+    # Get raw probabilities
+    y_pred_test_probs = ann.predict(x_test_str)
+    y_pred_train_probs = ann.predict(x_train_str)
+
+    # Find the optimal threshold based on validation set
+    thresholds = np.arange(0.1, 1.0, 0.1)
+    f1_scores = [f1_score(y_test, y_pred_test_probs > t) for t in thresholds]
+    best_threshold = thresholds[np.argmax(f1_scores)]
+
+    # Use the optimal threshold for test predictions
+    y_pred_test = y_pred_test_probs > best_threshold
+    y_pred_train = y_pred_train_probs > best_threshold
+
+    # Calculate F1-score with the optimal threshold
+    f1_score_test = f1_score(y_test, y_pred_test)
+    f1_score_train = f1_score(y_train, y_pred_train)
+
+    # Creating the distribution of data variable
+
+    # Performance measurement variables
+    confusion_test = confusion_matrix(y_test, y_pred_test)
+    confusion_train = confusion_matrix(y_train, y_pred_train)
+    accuracy_test = accuracy_score(y_test, y_pred_test)
+    accuracy_train = accuracy_score(y_train, y_pred_train)
+
+    # Return train F1-scores along with other results
+    return confusion_test, confusion_train, accuracy_test, accuracy_train, f1_score_test, f1_score_train, history, f1_score_callback.train_f1_scores, f1_score_callback.val_f1_scores
+
+
+def visulise(train_f1_scores,test_f1_scores,history, RunName):
+    # Visualize F1-score improvement over epochs
+    epochs = range(1, len(train_f1_scores) + 1)
+
+    plt.plot(epochs, train_f1_scores, 'b', label='Training F1-score')
+    plt.plot(epochs, test_f1_scores, 'r', label='Validation F1-score')
+    plt.title(f'{RunName} - F1-score Improvement')
+    plt.xlabel('Epochs')
+    plt.ylabel('F1-score')
+    plt.legend()
     plt.show()
 "inputlist for atr_types=[freq,cat_no_loc,cat_loc,loc_add"
 def run_the_code(list_boundries,feature_eng,atr_types,epocs):
@@ -202,11 +236,11 @@ def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     #     x=x[[x for x in atr_list if x in columns]]
     #     RunName="Model Accuracy-NumericalAttributes"
     x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.25)
-    confusion_test,confusion_train,accuracy_test,accuracy_train,history=ANN(x_train_str,y_train,x_test_str, y_test,epocs)
-    visulise(history,RunName)
+    confusion_test, confusion_train, accuracy_test, accuracy_train, f1_score_test, f1_score_train, history, train_f1_scores, test_f1_scores=ANN(x_train_str,y_train,x_test_str, y_test,epocs)
+    visulise(train_f1_scores,test_f1_scores,history,RunName)
     return(ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName)
  
 
 ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName=\
-    run_the_code(list_boundries=4,feature_eng=False,atr_types=["cat_no_loc","freq"],epocs=30)
+    run_the_code(list_boundries=4,feature_eng=False,atr_types=["cat_no_loc","freq","cat_loc"],epocs=55)
 print(ch_orders.columns)

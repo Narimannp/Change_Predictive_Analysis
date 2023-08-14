@@ -169,3 +169,6 @@ pr_w_ch=df_pr[~df_pr["first_ch_date"].isna()]
 ###pr_w_ch_city_matched=pr_w_ch[~pr_w_ch["population"].isna()]
 # projects_w_ch_dist_projecttype=projects_w_ch_dist_projecttype.rename(columns={"ProjectType":"With_ch_or"})
 ###comparison_w_wh_ch_or_projecttype=pd.DataFrame(data=[projects_w_ch_dist_projecttype,projects_wh_ch_dist_projecttype],index=["With_Ch_Or","Without_Ch_Or"])
+
+
+classification=set(df_or["ProjectClassification"])
