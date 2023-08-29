@@ -21,14 +21,14 @@ from sklearn.metrics import f1_score,make_scorer,balanced_accuracy_score
 
 def read_df():
     #Read external datasets, 1-Projects,2-Canadacities
-    ch_orders_orig=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
-    ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
-            'ProjectCity', 'DailyCost', 'Population', 'Density',
-             'ProjectBillingType','ProjectOperatingUnit', \
-            'ProjectType', 'ChangeDuration',
-            'DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer'\
-                ,"Freq_n_City","Freq_p_City","Freq_Class_1_p","Freq_Class_1_n","Freq_Class_2_p","Freq_Class_2_n","Freq_Prov_p","Freq_Prov_n",\
-                    'ProjectClassification',"Classification_1","Classification_2","PrimeChFreq_n","PrimeChFreq_p","CommitChFreq_p"]]
+    ch_orders=pd.read_csv(r'D:\Concordia\Master_Of_Science\Dataset_aedo_june_2022\Text_Mining\allprojects\8_imputed_duration.csv')
+    # ch_orders=ch_orders_orig[['ProjectId', 'ProjectBaseContractValue', 'ProjectProvince',
+            # 'ProjectCity', 'DailyCost', 'Population', 'Density',
+             # 'ProjectBillingType','ProjectOperatingUnit', \
+            # 'ProjectType', 'ChangeDuration',
+            # 'DurationModified', 'TotalChPer', 'PrimeChPer', 'CommitChPer', 'SalesChPer'\
+                # ,"Freq_n_City","Freq_p_City","Freq_Class_1_p","Freq_Class_1_n","Freq_Class_2_p","Freq_Class_2_n","Freq_Prov_p","Freq_Prov_n",\
+                    # 'ProjectClassification',"Classification_1","Classification_2","PrimeChFreq_n","PrimeChFreq_p","CommitChFreq_p"]]
     # ch_orders.drop(columns=["ProjectCity","DailyCost","ChangeDuration","TotalChFreq","PrimeChFreq","CommitChFreq",\
     #                  "CommitChFreq","SalesChFreq","TotalChPer","PrimeChPer","CommitChPer","SalesChPer"],axis=1,inplace=True)
     ch_orders=ch_orders.set_index("ProjectId")

@@ -8,16 +8,13 @@ Created on Wed Jan 25 18:38:10 2023
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
-import seaborn as sns
-import sklearn as slr
 from sklearn.model_selection import train_test_split
-
+from sklearn.preprocessing import OrdinalEncoder
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score,make_scorer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.inspection import permutation_importance
 from sklearn import tree
 from step_9_0_FeatureSelection_PCA import atr_list
 from step_9_0_FeatureSelection_ChiSquare import sorted_cat_atrs as sorted_cat_atrs
@@ -60,7 +57,7 @@ def select_atrs(df,atr_types):
     temp_loc_columns=[]
     target_atrs=['PrimeChPer']
     loc_orig=["City","Province"]
-    orig_cat_atrs="OperatingUnit,BillType,ProjectClassification,Classification_1,Classification_2,ProjectType".split(",")
+    orig_cat_atrs="OperatingUnit,BillType,ProjectClassification,Classification_1,Classification_2".split(",")
     orig_num_atrs="BaseValue,DurationModified".split(",")
     loc_keys="City,Prov".split(",")
     loc_atrs_add="Population,Density".split(",")
@@ -140,17 +137,17 @@ def custom_scorer(y_true, y_pred):
 def random_forest_classification(x_train,x_test,y_train,y_test):
     # hyperparameter grid to search
     param_grid = {
-    'n_estimators': (400,400),           # Number of decision trees in the forest
-    'max_depth': (8,8),              # Maximum depth of each decision tree
-    'min_samples_split': (15, 15),          # Minimum number of samples required to split an internal node
-    'min_samples_leaf': (7, 7),
-    'criterion':('gini' ,'gini') ,          # Minimum number of samples required in a leaf node
-    'max_features': ['auto', 'sqrt'],        # Number of features to consider when looking for the best split
+    'n_estimators': (80,),           # Number of decision trees in the forest
+    'max_depth': (8,),              # Maximum depth of each decision tree
+    'min_samples_split': (15, ),          # Minimum number of samples required to split an internal node
+    'min_samples_leaf': (9, ),
+    'criterion':('gini' ,) ,          # Minimum number of samples required in a leaf node
+    # 'max_features': ['auto', 'sqrt'],        # Number of features to consider when looking for the best split
     # 'bootstrap': (True, False),               # Whether to use bootstrapped samples
     }
     custom_scorer2 = make_scorer(custom_scorer)
     rfc = RandomForestClassifier( random_state=1,class_weight="balanced")
-    grid_search = GridSearchCV(rfc, param_grid,n_jobs=-1,cv=10,verbose=-1,  scoring=custom_scorer2)
+    grid_search = GridSearchCV(rfc, param_grid,n_jobs=-1,cv=15,verbose=-1,  scoring=custom_scorer2)
     grid_search.fit(x_train, y_train)
     rf_best=grid_search.best_estimator_
     # the best hyperparameters and best model from grid search
@@ -173,7 +170,11 @@ def random_forest_classification(x_train,x_test,y_train,y_test):
 def classification_prep(ch_orders,x,y,test_size):
     a=x.dtypes=="object"
     categorical_atr_list=list(a.loc[x.dtypes=="object"].index)
-    x=pd.get_dummies(x,columns=categorical_atr_list,drop_first=True)
+    num=x.drop(categorical_atr_list,axis=1)
+    enc=OrdinalEncoder()
+    cat=enc.fit_transform(x[categorical_atr_list])
+    cat=pd.DataFrame(cat,columns=categorical_atr_list,index=x.index)
+    x=pd.concat([num,cat],axis=1)
     x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=test_size,random_state=0)
     y_train=np.array(y_train).ravel()
     return(x_train,x_test,y_train,y_test)
@@ -226,7 +227,7 @@ def visulize_tree(best_model,x_train,y_train):
     
 def run_the_code(list_boundries,feature_eng,atr_types):
     ch_orders=read_df()
-    ch_orders=project_filter(ch_orders,"ProjectType","Construction")
+    ch_orders=drop_atr(ch_orders,["ProjectType"])
     ch_orders,RunName=select_atrs(ch_orders,atr_types)
     ch_orders=label_target_atr(ch_orders,list_boundries)
     ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
@@ -241,31 +242,7 @@ def run_the_code(list_boundries,feature_eng,atr_types):
         RunName=RunName+"\n w FE"
     else:
         RunName=RunName+"\n wh FE"
-    atr_to_drop=['Frq_OPU_n_dur','Frq_OPU_n_sze','Classification_1_RESIDENTIAL','Classification_2_EDUC','Frq_Classification_n_dur','Frq_Class1_p_dur','Frq_Class1_p_sze','Classification_2_RAIL','Classification_2_BUILD','Classification_2_DATA','Classification_2_LAB','Classification_2_GOV','Frq_Classification_n_sze','Classification_2_PRISON','Classification_2_MENTAL','Classification_2_HYDRO','Classification_2_AUTO','Classification_2_MILITY','Classification_2_COURT','Classification_2_SPORTS','Classification_2_WASTE','Classification_2_CARE','Classification_2_ENTERT','Classification_2_NUCLR','Classification_2_CASINO','Classification_2_RELIG','Classification_2_BREWERY','Classification_2_ARTS','Classification_1_INFRASTRUCTURE']
-    atr2_to_drop=['Classification_2_OFFICE', 'Frq_Class2_p_sze',
-           'Frq_Classification_p_sze', 'ProjectClassification_COMM.OFFICE.LOW',
-           'Frq_Classification_p_dur', 'ProjectClassification_INSTUL.EDUC',
-           'Classification_1_INDUST', 'Frq_Class2_p_dur', 'Frq_OPU_p_dur',
-           'ProjectClassification_COMM.DATA', 'Frq_Class1_n_dur',
-           'Frq_Class2_n_sze', 'ProjectClassification_INSTUL.HOSPITL.RENO',
-           'ProjectClassification_INDUST.BUILD',
-           'ProjectClassification_RESIDENTIAL', 'Classification_2_PLANT',
-           'ProjectClassification_INDUST.PLANT', 'OperatingUnit_Major Projects',
-           'ProjectClassification_INSTUL.CARE',
-           'ProjectClassification_INSTUL.HOSPITL.NEW',
-           'ProjectClassification_INDUST.HYDRO',
-           'ProjectClassification_INSTUL.MILITY',
-           'ProjectClassification_INSTUL.COURT',
-           'ProjectClassification_INFRASTRUCTURE',
-           'ProjectClassification_INSTUL.PRISON',
-           'ProjectClassification_INDUST.PLANT.WEED',
-           'ProjectClassification_INDUST.NUCLR', 'Classification_2_AIR',
-           'ProjectClassification_INSTUL.MENTAL',
-           'ProjectClassification_COMM.RELIG', 'ProjectClassification_COMMERCIAL',
-           'ProjectClassification_COMM.SPORTS', 'OperatingUnit_Corporate',
-           'OperatingUnit_Infrastructure', 'ProjectClassification_INDUST.AUTO',
-           'ProjectClassification_COMM.ARTS', 'ProjectClassification_COMM.CASINO',
-           'ProjectClassification_COMM.BREWERY']
+ 
 
     x_train,x_test,y_train,y_test=classification_prep(ch_orders,x,y,.25)
     # x_train=drop_atr(x_train,atr_to_drop)
@@ -281,4 +258,3 @@ def run_the_code(list_boundries,feature_eng,atr_types):
 ch_orders,importances,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_score_train,f1_score_test=\
     run_the_code(list_boundries=4,feature_eng=False,atr_types=["freq","cat_no_loc"])
 
-a=ch_orders

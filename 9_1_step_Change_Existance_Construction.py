@@ -149,7 +149,7 @@ def svm_classification_wh_gridsearch(x_train_str,x_test_str,y_train,y_test,kerne
 def svm_classification_w_gridsearch(x_train_str,x_test_str,y_train,y_test,kernel_input):
     clf_svm=svm.SVC(kernel=kernel_input,class_weight="balanced")
     weighted_accuracy_scorer=make_scorer(balanced_accuracy_score)
-    params={"C":(0.1,0.011,2),"degree":(2,3,4,5),"gamma":(.001,0.05,.5)}
+    params={"C":(1,),"degree":(3,),"gamma":(1,)}
     custom_scorer2 = make_scorer(custom_scorer)
     svm_grid=GridSearchCV(clf_svm,params,n_jobs=-1,cv=10,verbose=-1,scoring=custom_scorer2)
     svm_grid.fit(x_train_str,y_train)
@@ -217,7 +217,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,list_boundries,atr_
     ch_orders,RunName=select_atrs(ch_orders,atr_types)
     ch_orders=label_target_atr(ch_orders,list_boundries)
 
-    ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
+    # ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
 
     x,y=split_x_y(ch_orders) 
     x_train,x_train_str,x_test_str,y_train,y_test=svm_classification_prep(ch_orders,x,y,.3)
@@ -228,7 +228,7 @@ def run_the_code(grid_search_bool,kernel_str,prime_or_commit,list_boundries,atr_
     run_results,output=prediction_output(atr_types,kernel_str,best_params,FE,list_boundries,y_train,accuracy_train,accuracy_test,f1_train,f1_test)
     return(run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test)
 run_results,output,cv_results,ch_orders,x_train,y_train,y_test,confusion_test,accuracy_test,confusion_train,accuracy_train,best_params,f1_train,f1_test=\
-    run_the_code(True,"rbf","Prime",4,["cat_loc","cat_no_loc","freq"],True)
+    run_the_code(True,"poly","Prime",4,["cat_loc","cat_no_loc","freq","loc_add"],True)
 # ch_orders=read_df()
 # ch_orders=project_filter(ch_orders,"ProjectType","Construction")
 # ch_orders=label_target_atr(ch_orders,4)

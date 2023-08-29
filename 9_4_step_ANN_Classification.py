@@ -4,7 +4,7 @@ Created on Wed Jan 25 18:38:10 2023
 
 @author: narim
 """
-
+from sklearn.preprocessing import OrdinalEncoder
 import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
@@ -28,7 +28,7 @@ def read_df():
                                    "ProjectBillingType":"BillType","ProjectCity":"City","ProjectProvince":"Province"},inplace=True)
     ch_orders=ch_orders.set_index("ProjectId")
     return(ch_orders)
-
+a=read_df()
 "Given the Df and types of attributes necessary, return the df with required attribute types"
 def select_atrs(df,atr_types):
     loc_columns=[]
@@ -114,7 +114,11 @@ def outlier_remove(dataset,atrlist):
 def classification_prep(ch_orders,x,y,test_size):
     a=x.dtypes=="object"
     categorical_atr_list=list(a.loc[x.dtypes=="object"].index)
-    x=pd.get_dummies(x,columns=categorical_atr_list,drop_first=True)
+    num=x.drop(categorical_atr_list,axis=1)
+    enc=OrdinalEncoder()
+    cat=enc.fit_transform(x[categorical_atr_list])
+    cat=pd.DataFrame(cat,columns=categorical_atr_list,index=x.index)
+    x=pd.concat([num,cat],axis=1)
     x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=test_size,random_state=0)
     sc=StandardScaler().fit(x_train)
     x_train_str=pd.DataFrame(data=sc.transform(x_train),index=x_train.index,columns=x_train.columns)
@@ -147,14 +151,14 @@ def lr_scheduler(epoch, initial_learning_rate):
         return initial_learning_rate * tf.math.exp(-0.003 * (epoch - 30))
 
 def ANN(x_train_str, y_train, x_test_str, y_test, num_epochs):
-    seed = 42
+    seed = 0
     np.random.seed(seed)
     tf.random.set_seed(seed)
     input_size = (len(x_train_str.columns))
     ann = tf.keras.models.Sequential()
     ann.add(tf.keras.layers.Dense(units=input_size, activation="relu"))
-    ann.add(tf.keras.layers.Dense(units=4, activation="sigmoid"))
-    ann.add(tf.keras.layers.Dense(units=4, activation="sigmoid"))
+    ann.add(tf.keras.layers.Dense(units=3, activation="sigmoid"))
+    ann.add(tf.keras.layers.Dense(units=2, activation="sigmoid"))
     ann.add(tf.keras.layers.Dense(units=1, activation="sigmoid"))
     initial_learning_rate = .01
 
@@ -173,7 +177,7 @@ def ANN(x_train_str, y_train, x_test_str, y_test, num_epochs):
 
     f1_score_callback = F1ScoreCallback(validation_data=(x_test_str, y_test), train_data=(x_train_str, y_train))
 
-    history = ann.fit(x_train_str, y_train, validation_data=(x_test_str, y_test), batch_size=16, epochs=num_epochs,
+    history = ann.fit(x_train_str, y_train, validation_data=(x_test_str, y_test), batch_size=32, epochs=num_epochs,
                       class_weight=weight_dictionary, callbacks=[lr_callback, f1_score_callback])
 
     # Get raw probabilities
@@ -181,7 +185,7 @@ def ANN(x_train_str, y_train, x_test_str, y_test, num_epochs):
     y_pred_train_probs = ann.predict(x_train_str)
 
     # Find the optimal threshold based on validation set
-    thresholds = np.arange(0.1, 1.0, 0.1)
+    thresholds = [0.5,0.55]
     f1_scores = [f1_score(y_test, y_pred_test_probs > t) for t in thresholds]
     best_threshold = thresholds[np.argmax(f1_scores)]
 
@@ -219,10 +223,10 @@ def visulise(train_f1_scores,test_f1_scores,history, RunName):
 "inputlist for atr_types=[freq,cat_no_loc,cat_loc,loc_add"
 def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     ch_orders=read_df()
-    ch_orders=project_filter(ch_orders,"ProjectType","Construction")
+    # ch_orders=project_filter(ch_orders,"ProjectType","Construction")
     ch_orders,RunName=select_atrs(ch_orders,atr_types)
     ch_orders=label_target_atr(ch_orders,list_boundries)
-    ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
+    # ch_orders=outlier_remove(ch_orders,["PrimeChPer"])
     x,y=split_x_y(ch_orders) 
     if feature_eng==True:
         columns=ch_orders.columns
@@ -238,9 +242,9 @@ def run_the_code(list_boundries,feature_eng,atr_types,epocs):
     x_train,x_train_str,x_test_str,y_train,y_test=classification_prep(ch_orders,x,y,.25)
     confusion_test, confusion_train, accuracy_test, accuracy_train, f1_score_test, f1_score_train, history, train_f1_scores, test_f1_scores=ANN(x_train_str,y_train,x_test_str, y_test,epocs)
     visulise(train_f1_scores,test_f1_scores,history,RunName)
-    return(ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName)
+    return(ch_orders,f1_score_test, f1_score_train,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName)
  
 
-ch_orders,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName=\
-    run_the_code(list_boundries=4,feature_eng=False,atr_types=["cat_no_loc","freq","cat_loc"],epocs=55)
+ch_orders,f1_score_test, f1_score_train,confusion_test,confusion_train,accuracy_train,accuracy_test,x_train_str,y_train,y_test,RunName=\
+    run_the_code(list_boundries=4,feature_eng=True,atr_types=["cat_no_loc","freq","cat_loc","loc_add"],epocs=55)
 print(ch_orders.columns)

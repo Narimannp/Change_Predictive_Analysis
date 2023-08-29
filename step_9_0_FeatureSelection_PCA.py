@@ -98,11 +98,11 @@ def pca(df,n):
     #data in the new feature space
     transformed_data = pd.DataFrame(data=pca.transform(df),columns=PCs,index=df.index)
     cumulative_variance = np.cumsum(variance_ratios)
-    # plt.scatter(range(1, len(variance_ratios) + 1), cumulative_variance)
-    # plt.xlabel('Number of Principal Components')
-    # plt.ylabel('Cumulative Explained Variance')
-    # plt.title('Cumulative PCs Variance')
-    # plt.show()
+    plt.scatter(range(1, len(variance_ratios) + 1), cumulative_variance)
+    plt.xlabel('Number of Principal Components')
+    plt.ylabel('Cumulative Explained Variance')
+    plt.title('Cumulative PCs Variance')
+    plt.show()
     return(eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance)
 
 "Given DF, and eigenvectors returns the most essential list of attributes from PCA results while having removed the coliniarity"
@@ -130,8 +130,13 @@ def best_atrs_wh_coliniarity(df,df_eigenvectors):
 def run_the_code(n):   
     ch_orders=read_df()
     ch_orders=select_atrs(ch_orders,"")
+    ch_orders=ch_orders[['BaseValue', 'DurationModified', 'Frq_Classification_p_dur',
+            'Frq_Classification_p_sze', 'Frq_OPU_p_dur', 'Frq_Class1_n_dur',
+            'Frq_Class1_n_sze', 'Frq_Class2_n_sze', 
+            'Frq_Prov_p_dur', 'Frq_City_p_sze', 'OperatingUnit', 'Classification_2',
+            'City']]
     # print(ch_orders.columns)
-    ch_orders=project_filter(ch_orders,"ProjectType","Construction")
+    # ch_orders=project_filter(ch_orders,"ProjectType","Construction")
     ch_orders_str=standardize(ch_orders)
     eigenvectors,variance_ratios,singular_values,transformed_data,transformed_data,variance_ratios,cumulative_variance=pca(ch_orders_str,n)
     atr_list=best_atrs_wh_coliniarity(ch_orders,eigenvectors)
