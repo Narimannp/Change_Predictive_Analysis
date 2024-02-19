@@ -165,7 +165,7 @@ def random_forest_classification(x_train,x_test,y_train,y_test):
     }
     custom_scorer2 = make_scorer(custom_scorer)
     rfc = RandomForestClassifier( random_state=1,class_weight="balanced")
-    grid_search = GridSearchCV(rfc, param_grid,n_jobs=-1,cv=10,verbose=-1,  scoring=custom_scorer2)
+    grid_search = GridSearchCV(rfc, param_grid,n_jobs=-1,cv=10,  scoring=custom_scorer2)
     grid_search.fit(x_train, y_train)
     rf_best=grid_search.best_estimator_
     # the best hyperparameters and best model from grid search
@@ -247,12 +247,13 @@ def classification_prep(ch_orders,x,y,test_size):
     return(x_train,x_test,y_train,y_test)
 
 def pearson_spearman(df):
-    # df=df["Date_Diff,Population".split(",")]
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+    df = df.select_dtypes(include=numerics)
     for column in df:
-       #Range normalizing attributes
+       "Range normalizing attributes"
        df[column]=(df[column]-df[column].min())/(df[column].max()-df[column].min())
-    pearson=df.corr(method='pearson', min_periods=1)
-    spearman=df.corr(method='spearman', min_periods=1)
+    pearson=df.corr(method='pearson', min_periods=1).round(2)
+    spearman=df.corr(method='spearman', min_periods=1).round(2)
     return(pearson,spearman)
 
 
@@ -300,7 +301,7 @@ def run_the_code(list_boundries,feature_eng,atr_types):
     best_params,best_tree,best_rf_model,importances,confusion_test,accuracy_test,confusion_train,accuracy_train,f1_train,f1_test=\
     random_forest_classification(x_train,x_test,y_train,y_test)
     perm_sorted_idx,permutation_result=permutation_importances(best_rf_model,x_train,y_train,)
-    # spearman=higherarchi_clustring(x_train)
+    spearman=higherarchi_clustring(x_train)
 
     return(spearman,ch_orders,importances,perm_sorted_idx,permutation_result,best_params,accuracy_train,accuracy_test,confusion_test,confusion_train,x_train,y_train,y_test,RunName,f1_train,f1_test)
 

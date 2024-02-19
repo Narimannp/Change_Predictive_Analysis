@@ -147,7 +147,7 @@ def random_forest_classification(x_train,x_test,y_train,y_test):
     }
     custom_scorer2 = make_scorer(custom_scorer)
     rfc = RandomForestClassifier( random_state=1,class_weight="balanced")
-    grid_search = GridSearchCV(rfc, param_grid,n_jobs=-1,cv=15,scoring=custom_scorer2)
+    grid_search = GridSearchCV(rfc, param_grid,cv=15,scoring=custom_scorer2)
     grid_search.fit(x_train, y_train)
     rf_best=grid_search.best_estimator_
     # the best hyperparameters and best model from grid search
